@@ -25,9 +25,7 @@ const vtxKey = (x: number, y: number, z: number): string => {
   return `${Math.round(x * EDGE_Q)},${Math.round(y * EDGE_Q)},${Math.round(z * EDGE_Q)}`;
 };
 
-const undirectedEdgeKey = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): string => {
-  const a = vtxKey(x1, y1, z1);
-  const b = vtxKey(x2, y2, z2);
+const undirectedEdgeKeyFromVtx = (a: string, b: string): string => {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 };
 
@@ -50,11 +48,14 @@ const centerSideKey = (li: number, x1: number, y1: number, z1: number, x2: numbe
 const MIN_GRADIENT = 1e-4;
 
 /** MC patch edge id: (min(ea,eb) << 4) | max(ea,eb), ea/eb in 0..11 */
-const patchEdgeId = (ea: number, eb: number): number => {
-  const lo = ea < eb ? ea : eb;
-  const hi = ea < eb ? eb : ea;
-  return (lo << 4) | hi;
-};
+const PATCH_EDGE_ID = new Uint8Array(144);
+for (let a = 0; a < 12; a++) {
+  for (let b = 0; b < 12; b++) {
+    const lo = a < b ? a : b;
+    const hi = a < b ? b : a;
+    PATCH_EDGE_ID[a * 12 + b] = (lo << 4) | hi;
+  }
+}
 
 interface TopographicalContext extends PatternSampleContext {
   noise: SimplexNoise3D;
@@ -247,6 +248,9 @@ class PositionBuffer {
   }
 
   toArray(): Float32Array {
+    if (this.chunks.length === 0) {
+      return this.current.slice(0, this.offset);
+    }
     const result = new Float32Array(this.total);
     let at = 0;
     for (const chunk of this.chunks) {
@@ -295,8 +299,11 @@ const marchAndThickenAllLevels = (
   if (nLevels === 0) return;
   const levelMin = levels[0];
   const levelMax = levels[nLevels - 1];
+  const fld = field;
+  const halfThick = halfThickness;
 
   const cornerOffset = new Int32Array([0, 1, 1 + nx, nx, nxy, 1 + nxy, 1 + nx + nxy, nx + nxy]);
+  const co = cornerOffset;
 
   const ovx = new Float32Array(12);
   const ovy = new Float32Array(12);
@@ -307,90 +314,73 @@ const marchAndThickenAllLevels = (
   const cvx = new Float32Array(12);
   const cvy = new Float32Array(12);
   const cvz = new Float32Array(12);
+  const ovKeys: string[] = new Array(12);
 
   const patchGenStamp = new Uint32Array(256);
   const patchEdgeCount = new Uint8Array(256);
+  const stamp = patchGenStamp;
+  const pCount = patchEdgeCount;
   let patchGen = 0;
   const patchTris = new Int8Array(16);
+  const patchId12 = new Uint8Array(5);
+  const patchId23 = new Uint8Array(5);
+  const patchId31 = new Uint8Array(5);
   const triTable = TRI_TABLE;
+  const edgeTable = EDGE_TABLE;
   const outerEdgeCount = new Map<string, number>();
 
-  const pendingOuterKeys: string[] = [];
-  const pendingLevelIdx: number[] = [];
-  let pendingCvBuf = new Float32Array(1 << 16);
+  const pendingOuterKeys: string[] = new Array(1 << 17);
+  const pendingLevelIdx: number[] = new Array(1 << 17);
+  let pendingCvBuf = new Float32Array(1 << 17);
   let pendingCvLen = 0;
-  let pendingCoordCap = 1 << 16;
-  let pendingCoords = new Float32Array(pendingCoordCap);
-  let pendingCoordLen = 0;
+  let pendingCoordCap = 1 << 18;
+  let pendingCoords = new Float32Array(1 << 18);
+  let pendingLen = 0;
 
-  const pushPendingCoords = (
-    ov1x: number, ov1y: number, ov1z: number,
-    ov2x: number, ov2y: number, ov2z: number,
-    iv1x: number, iv1y: number, iv1z: number,
-    iv2x: number, iv2y: number, iv2z: number
-  ) => {
-    if (pendingCoordLen + 12 > pendingCoordCap) {
-      pendingCoordCap *= 2;
-      const next = new Float32Array(pendingCoordCap);
-      next.set(pendingCoords.subarray(0, pendingCoordLen));
-      pendingCoords = next;
+  const queueBoundarySide = (outerKey: string, li: number, e1: number, e2: number) => {
+    const pi = pendingLen++;
+    if (pi + 1 >= pendingOuterKeys.length) {
+      const cap = pendingOuterKeys.length << 1;
+      pendingOuterKeys.length = cap;
+      pendingLevelIdx.length = cap;
     }
-    let o = pendingCoordLen;
-    pendingCoords[o++] = ov1x; pendingCoords[o++] = ov1y; pendingCoords[o++] = ov1z;
-    pendingCoords[o++] = ov2x; pendingCoords[o++] = ov2y; pendingCoords[o++] = ov2z;
-    pendingCoords[o++] = iv1x; pendingCoords[o++] = iv1y; pendingCoords[o++] = iv1z;
-    pendingCoords[o++] = iv2x; pendingCoords[o++] = iv2y; pendingCoords[o++] = iv2z;
-    pendingCoordLen = o;
-  };
-
-  const queueBoundarySide = (
-    outerKey: string,
-    li: number,
-    cx1: number, cy1: number, cz1: number,
-    cx2: number, cy2: number, cz2: number,
-    ov1x: number, ov1y: number, ov1z: number,
-    ov2x: number, ov2y: number, ov2z: number,
-    iv1x: number, iv1y: number, iv1z: number,
-    iv2x: number, iv2y: number, iv2z: number
-  ) => {
-    pendingOuterKeys.push(outerKey);
-    pendingLevelIdx.push(li);
+    pendingOuterKeys[pi] = outerKey;
+    pendingLevelIdx[pi] = li;
     if (pendingCvLen + 6 > pendingCvBuf.length) {
       const next = new Float32Array(pendingCvBuf.length << 1);
       next.set(pendingCvBuf.subarray(0, pendingCvLen));
       pendingCvBuf = next;
     }
     let o = pendingCvLen;
-    pendingCvBuf[o++] = cx1; pendingCvBuf[o++] = cy1; pendingCvBuf[o++] = cz1;
-    pendingCvBuf[o++] = cx2; pendingCvBuf[o++] = cy2; pendingCvBuf[o++] = cz2;
+    pendingCvBuf[o++] = cvx[e1]; pendingCvBuf[o++] = cvy[e1]; pendingCvBuf[o++] = cvz[e1];
+    pendingCvBuf[o++] = cvx[e2]; pendingCvBuf[o++] = cvy[e2]; pendingCvBuf[o++] = cvz[e2];
     pendingCvLen = o;
-    pushPendingCoords(ov1x, ov1y, ov1z, ov2x, ov2y, ov2z, iv1x, iv1y, iv1z, iv2x, iv2y, iv2z);
-  };
-
-  const bumpPatchEdge = (id: number) => {
-    if (patchGenStamp[id] !== patchGen) {
-      patchGenStamp[id] = patchGen;
-      patchEdgeCount[id] = 1;
-    } else {
-      patchEdgeCount[id]++;
+    o = pi * 12;
+    if (o + 12 > pendingCoordCap) {
+      pendingCoordCap = Math.max(pendingCoordCap << 1, o + 12);
+      const next = new Float32Array(pendingCoordCap);
+      next.set(pendingCoords.subarray(0, pendingLen * 12));
+      pendingCoords = next;
     }
+    pendingCoords[o++] = ovx[e1]; pendingCoords[o++] = ovy[e1]; pendingCoords[o++] = ovz[e1];
+    pendingCoords[o++] = ovx[e2]; pendingCoords[o++] = ovy[e2]; pendingCoords[o++] = ovz[e2];
+    pendingCoords[o++] = ivx[e1]; pendingCoords[o++] = ivy[e1]; pendingCoords[o++] = ivz[e1];
+    pendingCoords[o++] = ivx[e2]; pendingCoords[o++] = ivy[e2]; pendingCoords[o++] = ivz[e2];
   };
-
-  const patchCount = (id: number) => (patchGenStamp[id] === patchGen ? patchEdgeCount[id] : 0);
 
   for (let k = 0; k < nz - 1; k++) {
     for (let j = 0; j < ny - 1; j++) {
       for (let i = 0; i < nx - 1; i++) {
         const base = i + j * nx + k * nxy;
 
-        const v0 = field[base];
-        const v1 = field[base + 1];
-        const v2 = field[base + 1 + nx];
-        const v3 = field[base + nx];
-        const v4 = field[base + nxy];
-        const v5 = field[base + 1 + nxy];
-        const v6 = field[base + 1 + nx + nxy];
-        const v7 = field[base + nx + nxy];
+        const v0 = fld[base];
+        const v1 = fld[base + 1];
+        const v2 = fld[base + 1 + nx];
+        const v3 = fld[base + nx];
+        const v4 = fld[base + nxy];
+        const v5 = fld[base + 1 + nxy];
+        const v6 = fld[base + 1 + nx + nxy];
+        const v7 = fld[base + nx + nxy];
 
         let mn = v0;
         let mx = v0;
@@ -426,31 +416,37 @@ const marchAndThickenAllLevels = (
           if (v6 < iso) cubeIndex |= 64;
           if (v7 < iso) cubeIndex |= 128;
 
-          const edgeBits = EDGE_TABLE[cubeIndex];
+          const edgeBits = edgeTable[cubeIndex];
           if (edgeBits === 0) continue;
 
           for (let e = 0; e < 12; e++) {
-            if (!(edgeBits & (1 << e))) continue;
+            if ((edgeBits >> e & 1) === 0) continue;
             const cA = EDGE_A[e];
             const cB = EDGE_B[e];
-            const valA = field[base + cornerOffset[cA]];
-            const valB = field[base + cornerOffset[cB]];
+            const valA = fld[base + co[cA]];
+            const valB = fld[base + co[cB]];
             const denom = valB - valA;
             const mu = denom === 0 ? 0.5 : (iso - valA) / denom;
 
             const ax = CORNER_X[cA];
             const ay = CORNER_Y[cA];
             const az = CORNER_Z[cA];
-            const vx = x0 + (i + ax + (CORNER_X[cB] - ax) * mu) * sx;
-            const vy = y0 + (j + ay + (CORNER_Y[cB] - ay) * mu) * sy;
-            const vz = z0 + (k + az + (CORNER_Z[cB] - az) * mu) * sz;
+            const dbx = CORNER_X[cB] - ax;
+            const dby = CORNER_Y[cB] - ay;
+            const dbz = CORNER_Z[cB] - az;
+            const vx = x0 + (i + ax + dbx * mu) * sx;
+            const vy = y0 + (j + ay + dby * mu) * sy;
+            const vz = z0 + (k + az + dbz * mu) * sz;
 
-            noise.fbmGrad(vx * invScale, vy * invScale, vz * invScale, octaves, persistence);
+            const nxn = vx * invScale;
+            const nyn = vy * invScale;
+            const nzn = vz * invScale;
+            noise.fbmGrad(nxn, nyn, nzn, octaves, persistence);
             let gx = noise.gradX;
             let gy = noise.gradY;
             let gz = noise.gradZ;
             const len = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1;
-            const scale = halfThickness / len;
+            const scale = halfThick / len;
             gx *= scale;
             gy *= scale;
             gz *= scale;
@@ -471,6 +467,12 @@ const marchAndThickenAllLevels = (
             ivz[e] = ivzRaw < minZ ? minZ : ivzRaw > maxZ ? maxZ : ivzRaw;
           }
 
+          for (let e = 0; e < 12; e++) {
+            if ((edgeBits >> e & 1) !== 0) {
+              ovKeys[e] = vtxKey(ovx[e], ovy[e], ovz[e]);
+            }
+          }
+
           patchGen++;
           if (patchGen === 0) {
             patchGenStamp.fill(0);
@@ -482,63 +484,61 @@ const marchAndThickenAllLevels = (
             const e1 = triTable[triOffset + t];
             const e2 = triTable[triOffset + t + 1];
             const e3 = triTable[triOffset + t + 2];
+            const ti = nPatchTris / 3;
             patchTris[nPatchTris++] = e1;
             patchTris[nPatchTris++] = e2;
             patchTris[nPatchTris++] = e3;
-            bumpPatchEdge(patchEdgeId(e1, e2));
-            bumpPatchEdge(patchEdgeId(e2, e3));
-            bumpPatchEdge(patchEdgeId(e3, e1));
+            const id12 = PATCH_EDGE_ID[e1 * 12 + e2];
+            const id23 = PATCH_EDGE_ID[e2 * 12 + e3];
+            const id31 = PATCH_EDGE_ID[e3 * 12 + e1];
+            patchId12[ti] = id12;
+            patchId23[ti] = id23;
+            patchId31[ti] = id31;
+            if (stamp[id12] !== patchGen) {
+              stamp[id12] = patchGen;
+              pCount[id12] = 1;
+            } else pCount[id12]++;
+            if (stamp[id23] !== patchGen) {
+              stamp[id23] = patchGen;
+              pCount[id23] = 1;
+            } else pCount[id23]++;
+            if (stamp[id31] !== patchGen) {
+              stamp[id31] = patchGen;
+              pCount[id31] = 1;
+            } else pCount[id31]++;
           }
 
-          for (let t = 0; t < nPatchTris; t += 3) {
+          for (let t = 0, ti = 0; t < nPatchTris; t += 3, ti++) {
             const e1 = patchTris[t];
             const e2 = patchTris[t + 1];
             const e3 = patchTris[t + 2];
+            const id12 = patchId12[ti];
+            const id23 = patchId23[ti];
+            const id31 = patchId31[ti];
 
             out.pushThickTri(
               ovx[e1], ovy[e1], ovz[e1], ovx[e2], ovy[e2], ovz[e2], ovx[e3], ovy[e3], ovz[e3],
               ivx[e1], ivy[e1], ivz[e1], ivx[e2], ivy[e2], ivz[e2], ivx[e3], ivy[e3], ivz[e3]
             );
 
-            const ok12 = undirectedEdgeKey(ovx[e1], ovy[e1], ovz[e1], ovx[e2], ovy[e2], ovz[e2]);
-            const ok23 = undirectedEdgeKey(ovx[e2], ovy[e2], ovz[e2], ovx[e3], ovy[e3], ovz[e3]);
-            const ok31 = undirectedEdgeKey(ovx[e3], ovy[e3], ovz[e3], ovx[e1], ovy[e1], ovz[e1]);
+            const ok12 = undirectedEdgeKeyFromVtx(ovKeys[e1], ovKeys[e2]);
+            const ok23 = undirectedEdgeKeyFromVtx(ovKeys[e2], ovKeys[e3]);
+            const ok31 = undirectedEdgeKeyFromVtx(ovKeys[e3], ovKeys[e1]);
             let n = outerEdgeCount.get(ok12);
-            if (n === undefined) outerEdgeCount.set(ok12, 1);
-            else outerEdgeCount.set(ok12, n + 1);
+            outerEdgeCount.set(ok12, n === undefined ? 1 : n + 1);
             n = outerEdgeCount.get(ok23);
-            if (n === undefined) outerEdgeCount.set(ok23, 1);
-            else outerEdgeCount.set(ok23, n + 1);
+            outerEdgeCount.set(ok23, n === undefined ? 1 : n + 1);
             n = outerEdgeCount.get(ok31);
-            if (n === undefined) outerEdgeCount.set(ok31, 1);
-            else outerEdgeCount.set(ok31, n + 1);
+            outerEdgeCount.set(ok31, n === undefined ? 1 : n + 1);
 
-            const id12 = patchEdgeId(e1, e2);
-            const id23 = patchEdgeId(e2, e3);
-            const id31 = patchEdgeId(e3, e1);
-            if (patchCount(id12) === 1) {
-              queueBoundarySide(
-                ok12, li,
-                cvx[e1], cvy[e1], cvz[e1], cvx[e2], cvy[e2], cvz[e2],
-                ovx[e1], ovy[e1], ovz[e1], ovx[e2], ovy[e2], ovz[e2],
-                ivx[e1], ivy[e1], ivz[e1], ivx[e2], ivy[e2], ivz[e2]
-              );
+            if (stamp[id12] === patchGen && pCount[id12] === 1) {
+              queueBoundarySide(ok12, li, e1, e2);
             }
-            if (patchCount(id23) === 1) {
-              queueBoundarySide(
-                ok23, li,
-                cvx[e2], cvy[e2], cvz[e2], cvx[e3], cvy[e3], cvz[e3],
-                ovx[e2], ovy[e2], ovz[e2], ovx[e3], ovy[e3], ovz[e3],
-                ivx[e2], ivy[e2], ivz[e2], ivx[e3], ivy[e3], ivz[e3]
-              );
+            if (stamp[id23] === patchGen && pCount[id23] === 1) {
+              queueBoundarySide(ok23, li, e2, e3);
             }
-            if (patchCount(id31) === 1) {
-              queueBoundarySide(
-                ok31, li,
-                cvx[e3], cvy[e3], cvz[e3], cvx[e1], cvy[e1], cvz[e1],
-                ovx[e3], ovy[e3], ovz[e3], ovx[e1], ovy[e1], ovz[e1],
-                ivx[e3], ivy[e3], ivz[e3], ivx[e1], ivy[e1], ivz[e1]
-              );
+            if (stamp[id31] === patchGen && pCount[id31] === 1) {
+              queueBoundarySide(ok31, li, e3, e1);
             }
           }
         }
@@ -547,9 +547,12 @@ const marchAndThickenAllLevels = (
   }
 
   const sideEdgeSeen = new Set<string>();
-  const nPending = pendingOuterKeys.length;
-  for (let pi = 0; pi < nPending; pi++) {
-    if (outerEdgeCount.get(pendingOuterKeys[pi]) !== 1) continue;
+  const openOuter = new Set<string>();
+  for (const [key, count] of outerEdgeCount) {
+    if (count === 1) openOuter.add(key);
+  }
+  for (let pi = 0; pi < pendingLen; pi++) {
+    if (!openOuter.has(pendingOuterKeys[pi])) continue;
     const cvi = pi * 6;
     const centerKey = centerSideKey(
       pendingLevelIdx[pi],
@@ -601,17 +604,21 @@ export const buildTopographicalGeometry = (form: FormObject, resolution: number)
 
   const field = new Float32Array(nx * ny * nz);
   const xStep = sx * invScale;
+  const yStep = sy * invScale;
+  const zStep = sz * invScale;
   let idx = 0;
+  let z = z0 * invScale;
   for (let k = 0; k < nz; k++) {
-    const z = (z0 + k * sz) * invScale;
+    let y = y0 * invScale;
     for (let j = 0; j < ny; j++) {
-      const y = (y0 + j * sy) * invScale;
       let x = x0 * invScale;
       for (let i = 0; i < nx; i++) {
         field[idx++] = noise.fbm(x, y, z, octaves, persistence);
         x += xStep;
       }
+      y += yStep;
     }
+    z += zStep;
   }
 
   const grid: GridSpec = { nx, ny, nz, x0, y0, z0, sx, sy, sz };

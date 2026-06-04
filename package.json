@@ -9,14 +9,24 @@
     "preview": "bunx --bun vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^6.4.1",
+    "@mui/material": "^6.4.1",
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "swiss-ak": "^3.4.2",
+    "three": "^0.184.0",
+    "use-debounce": "^10.1.1",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react-swc": "^3.0.0",
-    "typescript": "^4.9.3",
+    "typescript": "^5.3.3",
     "vite": "^4.2.0"
   }
 }

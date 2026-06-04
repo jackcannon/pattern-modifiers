@@ -1,0 +1,12 @@
+.render {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: var(--render-bg);
+}
+
+.render canvas {
+  display: block;
+}

@@ -1,0 +1,33 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  > * {
+    flex-grow: 0;
+  }
+
+  .logo {
+    width: 50%;
+    max-width: 100px;
+    margin: 0.5em 0;
+  }
+
+  .gap {
+    flex-grow: 5;
+  }
+
+  .footer {
+    width: 100%;
+    padding: 0.5em;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+
+    .github-link {
+      color: var(--txt);
+    }
+  }
+}

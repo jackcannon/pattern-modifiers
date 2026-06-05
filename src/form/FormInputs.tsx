@@ -1,5 +1,18 @@
-import { Checkbox, Grid2, Input, InputAdornment, Slider, Switch, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import {
+  Checkbox,
+  Grid2,
+  IconButton,
+  Input,
+  InputAdornment,
+  Slider,
+  Switch,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography
+} from '@mui/material';
 import HelpIcon from '@mui/icons-material/Help';
+import CasinoIcon from '@mui/icons-material/Casino';
 
 import { FormInputConfig } from './schema';
 
@@ -9,6 +22,7 @@ interface InputProps<T> {
   value: T;
   onChange: (v: T) => void;
   max?: number;
+  placeholder?: string;
 }
 
 export const FormInputSlider = <T extends unknown>({ propName, config, value, onChange, max }: InputProps<T>) => {
@@ -61,28 +75,44 @@ export const FormInputNumber = <T extends unknown>({ propName, config, value, on
     </InputAdornment>
   ) : undefined;
   return (
-    <Grid2 flex={1} flexGrow={1}>
-      <Input
-        type="number"
-        value={value}
-        size="small"
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-          const value = event.target.value;
-          const num = Number(value);
-          if (!isNaN(num)) onChange(num as any);
-        }}
-        sx={{ width: '100%' }}
-        inputProps={{
-          step: config.inputStep ?? config.sliderStep ?? 1,
-          'aria-labelledby': `input-slider-${propName}`
-        }}
-        endAdornment={endAdornment}
-      />
+    <>
+      <Grid2 flex={1} flexGrow={1}>
+        <Input
+          type="number"
+          value={value}
+          size="small"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            const value = event.target.value;
+            const num = Number(value);
+            if (!isNaN(num)) onChange(num as any);
+          }}
+          sx={{ width: '100%' }}
+          inputProps={{
+            step: config.inputStep ?? config.sliderStep ?? 1,
+            'aria-labelledby': `input-slider-${propName}`
+          }}
+          endAdornment={endAdornment}
+        />
+      </Grid2>
+      <RandomizeButton config={config} onChange={onChange} />
+    </>
+  );
+};
+
+const RandomizeButton = <T extends unknown>({ config, onChange }: Pick<InputProps<T>, 'config' | 'onChange'>) => {
+  if (!config.randomize) return null;
+  return (
+    <Grid2>
+      <Tooltip title="Randomise" arrow>
+        <IconButton size="small" aria-label={`randomise ${config.displayName}`} onClick={() => onChange(config.randomize!() as T)}>
+          <CasinoIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </Grid2>
   );
 };
 
-export const FormInputText = <T extends unknown>({ propName, config, value, onChange }: InputProps<T>) => {
+export const FormInputText = <T extends unknown>({ propName, config, value, onChange, placeholder }: InputProps<T>) => {
   const endAdornment = config.unit ? (
     <InputAdornment position="end" sx={{ margin: 0 }}>
       {config.unit}
@@ -95,7 +125,7 @@ export const FormInputText = <T extends unknown>({ propName, config, value, onCh
         size="small"
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => onChange(event.target.value as any)}
         sx={{ width: '100%' }}
-        inputProps={{ 'aria-labelledby': `input-slider-${propName}` }}
+        inputProps={{ 'aria-labelledby': `input-slider-${propName}`, placeholder }}
         endAdornment={endAdornment}
       />
     </Grid2>
@@ -147,7 +177,9 @@ export const FormInputToggleButton = <T extends unknown>({ config, value, onChan
         size="small"
         value={value}
         exclusive
-        onChange={(event: React.MouseEvent<HTMLElement>, newValue: T) => onChange(newValue)}
+        onChange={(event: React.MouseEvent<HTMLElement>, newValue: T) => {
+          if (newValue !== null) onChange(newValue);
+        }}
         sx={{ marginTop: '0.25em' }}
       >
         {config.options?.map((opt) => (
@@ -161,7 +193,7 @@ export const FormInputToggleButton = <T extends unknown>({ config, value, onChan
 };
 
 export const FormInput = <T extends unknown>(props: InputProps<T>) => {
-  const { propName, config } = props;
+  const { propName, config, placeholder } = props;
 
   let flex = '1 0 100%';
   if (['boolean'].includes(config.type)) {
@@ -175,7 +207,7 @@ export const FormInput = <T extends unknown>(props: InputProps<T>) => {
       case 'number':
         return <FormInputNumber {...props} />;
       case 'text':
-        return <FormInputText {...props} />;
+        return <FormInputText {...props} placeholder={placeholder} />;
       case 'switch':
         return <FormInputSwitch {...props} />;
       case 'boolean':

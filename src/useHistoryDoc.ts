@@ -18,8 +18,12 @@ const queryToObject = (query: string, defaultValues: FormObject): FormObject => 
     if (!config) continue;
 
     let parsedValue: any = value;
-    if (['number', 'slider', 'toggle_button'].includes(config.type)) {
+    if (['number', 'slider'].includes(config.type)) {
       parsedValue = parseFloat(value);
+    }
+    if (config.type === 'toggle_button') {
+      const num = parseFloat(value);
+      parsedValue = isNaN(num) ? value : num;
     }
     if (['switch', 'boolean'].includes(config.type)) {
       parsedValue = Boolean(parseInt(value));
@@ -75,8 +79,11 @@ export const setQuery = (newForm: FormObject) => {
   }, 500);
 };
 
-export const useHistoryDoc = (schema: ZodSchema, defaultForm: object): [FormObject, (a: FormObject) => void] => {
-  const [form, setForm] = useState<FormObject>(() => initialise<FormObject>(schema, defaultForm));
+export const useHistoryDoc = (
+  schema: ZodSchema,
+  getDefaultForm: () => FormObject
+): [FormObject, (a: FormObject) => void] => {
+  const [form, setForm] = useState<FormObject>(() => initialise<FormObject>(schema, getDefaultForm()));
   const doSetForm = (form: FormObject) => {
     setForm(form);
     setQuery(form);

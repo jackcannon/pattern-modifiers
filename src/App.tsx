@@ -1,6 +1,6 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
-import { FormSchema, defaultFormObj } from './form/schema';
+import { FormSchema, createDefaultFormObj } from './form/schema';
 import { SceneRender } from './render/Render';
 import { Sidebar } from './sidebar/Sidebar';
 
@@ -9,9 +9,12 @@ import { useHistoryDoc } from './useHistoryDoc';
 
 import './App.css';
 
+const primary = { main: '#FFDC00' };
+
 const theme = createTheme({
   colorSchemes: {
-    dark: true
+    light: { palette: { primary } },
+    dark: { palette: { primary } }
   }
 });
 
@@ -20,7 +23,7 @@ const getStyle = (percent: number) => ({
 });
 
 const App = () => {
-  const [form, setForm] = useHistoryDoc(FormSchema, defaultFormObj);
+  const [form, setForm] = useHistoryDoc(FormSchema, createDefaultFormObj);
 
   const sidebarSize = SIDEBAR_PERCENT;
   const renderSize = 100 - SIDEBAR_PERCENT;

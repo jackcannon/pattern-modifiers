@@ -1,6 +1,7 @@
 import { Grid2, Paper } from '@mui/material';
 
 import { FormInput } from './FormInputs';
+import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
 import { formConfig, formGroups, FormObject, FormPropName, FormSchemaType } from './schema';
 
 import './form.css';
@@ -22,7 +23,19 @@ export const Form = ({ schema, object, onChange }: Props) => {
 
     const max = typeof config.max === 'function' ? config.max(object) : config.max;
 
-    return <FormInput key={key} propName={key} config={config} value={value} max={max} onChange={onChangeValue} />;
+    const placeholder = config.placeholder ? config.placeholder(object) : undefined;
+
+    return (
+      <FormInput
+        key={key}
+        propName={key}
+        config={config}
+        value={value}
+        max={max}
+        placeholder={placeholder}
+        onChange={onChangeValue}
+      />
+    );
   };
   return (
     <Grid2 container spacing={1} direction="row" wrap="wrap" justifyContent="flex-start" sx={{ width: 'calc(100% - 1em)' }}>
@@ -33,6 +46,9 @@ export const Form = ({ schema, object, onChange }: Props) => {
           <Grid2 key={`group-${index + 1}`} container sx={{ width: '100%' }}>
             <Paper sx={{ width: '100%', padding: '0.6em 0em 0.1em', display: 'flex', justifyContent: 'center' }}>
               <Grid2 container spacing={1} direction="row" wrap="wrap" justifyContent="flex-start" sx={{ width: 'calc(100% - 1em)' }}>
+                {group.includes('width') && group.includes('depth') && group.includes('height') && (
+                  <BuildVolumePresetSelect object={object} onChange={onChange} />
+                )}
                 {group.map((key) => getIndividualFormItem(key))}
               </Grid2>
             </Paper>

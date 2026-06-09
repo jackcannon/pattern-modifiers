@@ -1,8 +1,10 @@
-import { Tooltip } from '@mui/material';
+import { Button, Tooltip } from '@mui/material';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import DownloadIcon from '@mui/icons-material/Download';
 
 import { FormObject, FormSchema } from '../form/schema';
 import { Form } from '../form/Form';
+import { downloadSTL } from '../generate/stl';
 
 import logo from '/logo.svg';
 
@@ -22,6 +24,12 @@ export const Sidebar = ({ style, form, setForm }: Props) => {
       <Form object={form} schema={FormSchema} onChange={setForm} />
 
       <div className="gap"></div>
+
+      <div className="download">
+        <Button variant="contained" size="large" fullWidth startIcon={<DownloadIcon />} onClick={() => downloadSTL(form)}>
+          Download STL
+        </Button>
+      </div>
 
       <div className="footer">
         <Tooltip title="View source on GitHub" arrow>

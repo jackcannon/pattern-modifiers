@@ -17,6 +17,12 @@
 
   .gap {
     flex-grow: 5;
+    min-height: 1em;
+  }
+
+  .download {
+    width: calc(100% - 1.5em);
+    padding: 0.5em 0 0;
   }
 
   .footer {

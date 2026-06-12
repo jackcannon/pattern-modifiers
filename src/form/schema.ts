@@ -55,6 +55,9 @@ export interface FormInputConfig {
 export const getDefaultFileName = (form: FormObject) =>
   `pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}-scale${form.scale}-th${form.threshold}`;
 
+export const demoModeSectionNote =
+  'Demo mode only gives a very rough demonstration of what the modifier might look like.';
+
 export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   type: {
     paramName: 't',

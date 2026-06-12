@@ -1,8 +1,8 @@
-import { Grid2, Paper } from '@mui/material';
+import { Grid2, Paper, Typography } from '@mui/material';
 
 import { FormInput } from './FormInputs';
 import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
-import { formConfig, formGroups, FormObject, FormPropName, FormSchemaType } from './schema';
+import { demoModeSectionNote, formConfig, formGroups, FormObject, FormPropName, FormSchemaType } from './schema';
 
 import './form.css';
 
@@ -25,6 +25,13 @@ export const Form = ({ schema, object, onChange }: Props) => {
 
     const placeholder = config.placeholder ? config.placeholder(object) : undefined;
 
+    const footer =
+      key === 'demoEnabled' && object.demoEnabled ? (
+        <Typography component="p" variant="body2" className="form-section-note">
+          {demoModeSectionNote}
+        </Typography>
+      ) : undefined;
+
     return (
       <FormInput
         key={key}
@@ -33,6 +40,7 @@ export const Form = ({ schema, object, onChange }: Props) => {
         value={value}
         max={max}
         placeholder={placeholder}
+        footer={footer}
         onChange={onChangeValue}
       />
     );

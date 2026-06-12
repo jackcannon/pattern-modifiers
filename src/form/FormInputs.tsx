@@ -1,3 +1,5 @@
+import { ReactNode } from 'react';
+
 import {
   Checkbox,
   FormControl,
@@ -26,6 +28,7 @@ interface InputProps<T> {
   onChange: (v: T) => void;
   max?: number;
   placeholder?: string;
+  footer?: ReactNode;
 }
 
 export const FormInputSlider = <T extends unknown>({ propName, config, value, onChange, max }: InputProps<T>) => {
@@ -216,10 +219,10 @@ export const FormInputSelect = <T extends unknown>({ propName, config, value, on
 };
 
 export const FormInput = <T extends unknown>(props: InputProps<T>) => {
-  const { propName, config, placeholder } = props;
+  const { propName, config, placeholder, footer } = props;
 
   let flex = '1 0 100%';
-  if (['boolean'].includes(config.type)) {
+  if (['boolean'].includes(config.type) && !footer) {
     flex = '1 0 0%';
   }
 
@@ -288,6 +291,11 @@ export const FormInput = <T extends unknown>(props: InputProps<T>) => {
       <Grid2 container spacing={2} sx={{ width: '100%' }}>
         {section()}
       </Grid2>
+      {footer && (
+        <Grid2 sx={{ width: '100%', paddingTop: '0.4em' }}>
+          {footer}
+        </Grid2>
+      )}
     </Grid2>
   );
 };

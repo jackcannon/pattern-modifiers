@@ -4,8 +4,10 @@ import { Canvas } from '@react-three/fiber';
 import { FormObject } from '../form/schema';
 import { SIDEBAR_PERCENT } from '../constants';
 
+import { CameraAngleResetButton } from './CameraAngleResetButton';
 import { CameraController, CameraTarget } from './CameraController';
 import { CameraFocusButtons } from './CameraFocusButtons';
+import { defaultCameraTarget, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_POSITION, DEFAULT_CAMERA_UP } from './cameraDefaults';
 import { PatternModel } from './PatternModel';
 import { useWindowSize } from './useWindowSize';
 
@@ -19,7 +21,8 @@ interface Props {
 export const SceneRender = ({ style, form }: Props) => {
   const [width, height] = useWindowSize();
   const sectionRatio = (100 - SIDEBAR_PERCENT) / 100;
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget>(() => [0, 0, form.height / 2]);
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget>(() => defaultCameraTarget(form.height));
+  const [cameraAngleReset, setCameraAngleReset] = useState(0);
 
   return (
     <section className="render" style={style}>
@@ -29,9 +32,16 @@ export const SceneRender = ({ style, form }: Props) => {
         demoSize={form.demoSize}
         onFocus={setCameraTarget}
       />
+      <CameraAngleResetButton onReset={() => setCameraAngleReset((n) => n + 1)} />
       <Canvas
         style={{ width: width * sectionRatio, height }}
-        camera={{ position: [400, -400, 400], up: [0, 0, 1], fov: 50, near: 1, far: 10000 }}
+        camera={{
+          position: DEFAULT_CAMERA_POSITION,
+          up: DEFAULT_CAMERA_UP,
+          fov: DEFAULT_CAMERA_FOV,
+          near: 1,
+          far: 10000
+        }}
         gl={{ alpha: true }}
         onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
       >
@@ -41,7 +51,7 @@ export const SceneRender = ({ style, form }: Props) => {
         <Suspense fallback={null}>
           <PatternModel form={form} />
         </Suspense>
-        <CameraController target={cameraTarget} />
+        <CameraController target={cameraTarget} resetAngleSignal={cameraAngleReset} />
       </Canvas>
     </section>
   );

@@ -14,6 +14,8 @@ const tempC = new Vector3();
 const edgeTempA = new Vector3();
 const edgeTempB = new Vector3();
 
+const edgeKey = (a: number, b: number) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
 const appendTriangle = (target: number[], a: Vector3, b: Vector3, c: Vector3) => {
   target.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
 };
@@ -32,11 +34,142 @@ const toGeometry = (positions: number[]): BufferGeometry | null => {
   return geometry;
 };
 
+/**
+ * Repeatedly splits long edges at shared midpoints until every edge is below
+ * `maxEdgeLength`. Keeps the mesh watertight so the edge-cache clipper stays gap-free.
+ *
+ * @param {BufferGeometry} geometry - indexed triangle mesh
+ * @param {number} maxEdgeLength - longest allowed edge in mm
+ * @returns {BufferGeometry} subdivided mesh (caller owns disposal)
+ */
+const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: number): BufferGeometry => {
+  const positionAttr = geometry.getAttribute('position') as BufferAttribute;
+  const indexAttr = geometry.getIndex();
+  if (!indexAttr) return geometry.clone();
+
+  let positions = new Float32Array(positionAttr.array);
+  let indices = Array.from(indexAttr.array as ArrayLike<number>);
+
+  const edgeLengthSq = (ia: number, ib: number) => {
+    const ax = positions[ia * 3];
+    const ay = positions[ia * 3 + 1];
+    const az = positions[ia * 3 + 2];
+    const bx = positions[ib * 3];
+    const by = positions[ib * 3 + 1];
+    const bz = positions[ib * 3 + 2];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const dz = bz - az;
+    return dx * dx + dy * dy + dz * dz;
+  };
+
+  const maxEdgeLengthSq = maxEdgeLength * maxEdgeLength;
+
+  for (let pass = 0; pass < 12; pass++) {
+    const edgesToSplit = new Set<string>();
+
+    for (let t = 0; t < indices.length; t += 3) {
+      const ia = indices[t];
+      const ib = indices[t + 1];
+      const ic = indices[t + 2];
+      if (edgeLengthSq(ia, ib) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ia, ib));
+      if (edgeLengthSq(ib, ic) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ib, ic));
+      if (edgeLengthSq(ic, ia) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ic, ia));
+    }
+
+    if (edgesToSplit.size === 0) break;
+
+    const edgeMid = new Map<string, number>();
+    const getMidpoint = (a: number, b: number) => {
+      const key = edgeKey(a, b);
+      const existing = edgeMid.get(key);
+      if (existing !== undefined) return existing;
+
+      const next = positions.length / 3;
+      const expanded = new Float32Array(positions.length + 3);
+      expanded.set(positions);
+      expanded[next * 3] = (positions[a * 3] + positions[b * 3]) * 0.5;
+      expanded[next * 3 + 1] = (positions[a * 3 + 1] + positions[b * 3 + 1]) * 0.5;
+      expanded[next * 3 + 2] = (positions[a * 3 + 2] + positions[b * 3 + 2]) * 0.5;
+      positions = expanded;
+      edgeMid.set(key, next);
+      return next;
+    };
+
+    const nextIndices: number[] = [];
+
+    for (let t = 0; t < indices.length; t += 3) {
+      const ia = indices[t];
+      const ib = indices[t + 1];
+      const ic = indices[t + 2];
+      const splitAB = edgesToSplit.has(edgeKey(ia, ib));
+      const splitBC = edgesToSplit.has(edgeKey(ib, ic));
+      const splitCA = edgesToSplit.has(edgeKey(ic, ia));
+
+      if (!splitAB && !splitBC && !splitCA) {
+        nextIndices.push(ia, ib, ic);
+        continue;
+      }
+
+      if (splitAB && splitBC && splitCA) {
+        const mAB = getMidpoint(ia, ib);
+        const mBC = getMidpoint(ib, ic);
+        const mCA = getMidpoint(ic, ia);
+        nextIndices.push(ia, mAB, mCA, mAB, ib, mBC, mCA, mBC, ic, mAB, mBC, mCA);
+        continue;
+      }
+
+      if (splitAB && splitBC) {
+        const mAB = getMidpoint(ia, ib);
+        const mBC = getMidpoint(ib, ic);
+        nextIndices.push(ia, mAB, ic, mAB, ib, mBC, mAB, mBC, ic);
+        continue;
+      }
+
+      if (splitBC && splitCA) {
+        const mBC = getMidpoint(ib, ic);
+        const mCA = getMidpoint(ic, ia);
+        nextIndices.push(ib, mBC, ia, mBC, ic, mCA, mBC, mCA, ia);
+        continue;
+      }
+
+      if (splitCA && splitAB) {
+        const mCA = getMidpoint(ic, ia);
+        const mAB = getMidpoint(ia, ib);
+        nextIndices.push(ic, mCA, ib, mCA, ia, mAB, mCA, mAB, ib);
+        continue;
+      }
+
+      if (splitAB) {
+        const mAB = getMidpoint(ia, ib);
+        nextIndices.push(ia, mAB, ic, mAB, ib, ic);
+        continue;
+      }
+
+      if (splitBC) {
+        const mBC = getMidpoint(ib, ic);
+        nextIndices.push(ib, mBC, ia, mBC, ic, ia);
+        continue;
+      }
+
+      const mCA = getMidpoint(ic, ia);
+      nextIndices.push(ic, mCA, ib, mCA, ia, ib);
+    }
+
+    indices = nextIndices;
+  }
+
+  const result = new BufferGeometry();
+  result.setAttribute('position', new BufferAttribute(positions, 3));
+  result.setIndex(indices);
+  return result;
+};
+
 class EdgeCache {
   private points = new Map<string, Vector3>();
 
   getOrCreate(i: number, j: number, position: BufferAttribute, field: PatternField): Vector3 {
-    const key = i < j ? `${i}|${j}` : `${j}|${i}`;
+    const key = edgeKey(i, j);
     const cached = this.points.get(key);
     if (cached) return cached;
 
@@ -85,9 +218,9 @@ const clipTriangle = (
   let { a, b, c, ia: i0, ib: i1, ic: i2 } = loadTriangle(position, ia, ib, ic);
 
   const solid = (v: Vector3) => field.isSolid(v.x, v.y, v.z);
-  let sa = solid(a);
-  let sb = solid(b);
-  let sc = solid(c);
+  const sa = solid(a);
+  const sb = solid(b);
+  const sc = solid(c);
   const solidCount = Number(sa) + Number(sb) + Number(sc);
 
   if (solidCount === 0) {
@@ -139,17 +272,18 @@ const clipTriangle = (
  * @returns {DemoClipResult} clipped geometries
  */
 export const clipDemoWithField = (demoGeometry: BufferGeometry, field: PatternField): DemoClipResult => {
-  const working = demoGeometry.getIndex() ? demoGeometry : mergeVertices(demoGeometry.clone());
-  const owned = working !== demoGeometry;
+  const merged = mergeVertices(demoGeometry.clone());
+  const subdivided = subdivideLongEdges(merged, field.maxCellSize);
+  merged.dispose();
 
-  const index = working.getIndex();
+  const index = subdivided.getIndex();
   if (!index) {
-    const nonIndexed = working.toNonIndexed();
-    if (owned) working.dispose();
+    const nonIndexed = subdivided.toNonIndexed();
+    subdivided.dispose();
     return clipDemoWithField(nonIndexed, field);
   }
 
-  const position = working.getAttribute('position') as BufferAttribute;
+  const position = subdivided.getAttribute('position') as BufferAttribute;
   const insidePositions: number[] = [];
   const outsidePositions: number[] = [];
   const edgeCache = new EdgeCache();
@@ -159,7 +293,7 @@ export const clipDemoWithField = (demoGeometry: BufferGeometry, field: PatternFi
     clipTriangle(field, indices[t], indices[t + 1], indices[t + 2], position, edgeCache, insidePositions, outsidePositions);
   }
 
-  if (owned) working.dispose();
+  subdivided.dispose();
 
   return {
     inside: toGeometry(insidePositions),

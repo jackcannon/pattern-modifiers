@@ -6,6 +6,25 @@
   flex-wrap: wrap;
 }
 
+.form-section-note {
+  margin: 0;
+  padding: 0.45em 0.55em;
+  border-radius: var(--radius);
+  border-left: 2px solid rgba(255, 220, 0, 0.55);
+  background-color: rgba(255, 220, 0, 0.08);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: inherit;
+  opacity: 0.8;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  .form-section-note {
+    background-color: rgba(255, 220, 0, 0.06);
+    border-left-color: rgba(255, 220, 0, 0.45);
+  }
+}
+
 @media screen and (max-width: 768px) {
   .form {
     width: 100%;

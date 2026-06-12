@@ -27,6 +27,7 @@ export interface PatternGridContext {
 
 export interface PatternField {
   iso: number;
+  maxCellSize: number;
   inBounds(x: number, y: number, z: number): boolean;
   noiseAt(x: number, y: number, z: number): number;
   isSolid(x: number, y: number, z: number): boolean;
@@ -131,13 +132,15 @@ const isInBounds = (x: number, y: number, z: number, bounds: PatternBounds) =>
  * @returns {PatternField} field sampler
  */
 export const createPatternField = (form: FormObject, resolution: number): PatternField => {
-  const { iso, noise, scale, octaves, persistence, bounds } = buildPatternGrid(form, resolution);
+  const { iso, noise, scale, octaves, persistence, bounds, grid } = buildPatternGrid(form, resolution);
+  const maxCellSize = Math.min(grid.sx, grid.sy, grid.sz);
 
   const noiseAt = (x: number, y: number, z: number) =>
     noise.fbm(x / scale, y / scale, z / scale, octaves, persistence);
 
   return {
     iso,
+    maxCellSize,
     inBounds: (x, y, z) => isInBounds(x, y, z, bounds),
     noiseAt,
     isSolid: (x, y, z) => isInBounds(x, y, z, bounds) && noiseAt(x, y, z) >= iso

@@ -18,6 +18,13 @@
   gap: 0.35rem;
 }
 
+.render-angle-reset {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+}
+
 .render-focus-button {
   background-color: rgba(255, 255, 255, 0.92) !important;
   border: 1px solid rgba(0, 0, 0, 0.08);

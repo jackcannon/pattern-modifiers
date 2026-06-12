@@ -68,7 +68,7 @@ export const orientDemoGeometry = (geometry: BufferGeometry, model: DemoModelTyp
  * @returns {BufferGeometry} positioned geometry (caller owns disposal)
  */
 export const prepareDemoGeometry = (geometry: BufferGeometry, targetSize: number): BufferGeometry => {
-  const prepared = geometry.clone();
+  const prepared = geometry.getIndex() ? geometry.clone() : mergeVertices(geometry);
   prepared.computeBoundingBox();
 
   const box = prepared.boundingBox!;
@@ -81,9 +81,8 @@ export const prepareDemoGeometry = (geometry: BufferGeometry, targetSize: number
   const center = scaled.getCenter(new Vector3());
   prepared.translate(-center.x, -center.y, -scaled.min.z);
 
-  const merged = mergeVertices(prepared);
-  merged.computeVertexNormals();
-  return merged;
+  prepared.computeVertexNormals();
+  return prepared;
 };
 
 export const createDemoGeometry = (

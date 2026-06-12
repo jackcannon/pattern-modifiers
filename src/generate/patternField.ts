@@ -23,11 +23,25 @@ export interface PatternGridContext {
   octaves: number;
   persistence: number;
   bounds: PatternBounds;
+  histogram: Uint32Array;
+  sampleCount: number;
+}
+
+export interface ClipField {
+  iso: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+  sample(x: number, y: number, z: number): number;
 }
 
 export interface PatternField {
   iso: number;
   maxCellSize: number;
+  clip: ClipField;
   inBounds(x: number, y: number, z: number): boolean;
   noiseAt(x: number, y: number, z: number): number;
   isSolid(x: number, y: number, z: number): boolean;
@@ -118,11 +132,86 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
   }
   const iso = (isoBin + 1) / BINS;
 
-  return { field, grid, iso, noise, scale, octaves, persistence, bounds };
+  return { field, grid, iso, noise, scale, octaves, persistence, bounds, histogram, sampleCount };
 };
+
+const computeIso = (histogram: Uint32Array, sampleCount: number, threshold: number) => {
+  const targetSolid = (sampleCount * threshold) / 100;
+  let above = 0;
+  let isoBin = histogram.length - 1;
+  while (isoBin > 0 && above < targetSolid) {
+    above += histogram[isoBin];
+    isoBin--;
+  }
+  return (isoBin + 1) / histogram.length;
+};
+
+interface GridFieldCacheEntry {
+  key: string;
+  context: PatternGridContext;
+}
+
+let gridFieldCache: GridFieldCacheEntry | null = null;
+
+const gridFieldKey = (form: FormObject, resolution: number) =>
+  [
+    resolution,
+    form.width,
+    form.height,
+    form.depth,
+    form.overflow,
+    form.seed,
+    form.scale,
+    form.octaves,
+    form.persistence
+  ].join(':');
 
 const isInBounds = (x: number, y: number, z: number, bounds: PatternBounds) =>
   x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY && z >= bounds.minZ && z <= bounds.maxZ;
+
+const createGridSampler = (field: Float32Array, grid: GridSpec) => {
+  const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
+  const strideY = nx;
+  const strideZ = nx * ny;
+  const maxI = nx - 2;
+  const maxJ = ny - 2;
+  const maxK = nz - 2;
+  const invSx = 1 / sx;
+  const invSy = 1 / sy;
+  const invSz = 1 / sz;
+
+  return (x: number, y: number, z: number): number => {
+    const fx = (x - x0) * invSx;
+    const fy = (y - y0) * invSy;
+    const fz = (z - z0) * invSz;
+
+    const i0 = fx < 0 ? 0 : fx > maxI ? maxI : fx | 0;
+    const j0 = fy < 0 ? 0 : fy > maxJ ? maxJ : fy | 0;
+    const k0 = fz < 0 ? 0 : fz > maxK ? maxK : fz | 0;
+
+    const tx = fx - i0;
+    const ty = fy - j0;
+    const tz = fz - k0;
+
+    const base = i0 + j0 * strideY + k0 * strideZ;
+    const c000 = field[base];
+    const c100 = field[base + 1];
+    const c010 = field[base + strideY];
+    const c110 = field[base + 1 + strideY];
+    const c001 = field[base + strideZ];
+    const c101 = field[base + 1 + strideZ];
+    const c011 = field[base + strideY + strideZ];
+    const c111 = field[base + 1 + strideY + strideZ];
+
+    const c00 = c000 + (c100 - c000) * tx;
+    const c10 = c010 + (c110 - c010) * tx;
+    const c01 = c001 + (c101 - c001) * tx;
+    const c11 = c011 + (c111 - c011) * tx;
+    const c0 = c00 + (c10 - c00) * ty;
+    const c1 = c01 + (c11 - c01) * ty;
+    return c0 + (c1 - c0) * tz;
+  };
+};
 
 /**
  * Creates a continuous field sampler for clipping demo meshes against the pattern volume.
@@ -132,17 +221,29 @@ const isInBounds = (x: number, y: number, z: number, bounds: PatternBounds) =>
  * @returns {PatternField} field sampler
  */
 export const createPatternField = (form: FormObject, resolution: number): PatternField => {
-  const { iso, noise, scale, octaves, persistence, bounds, grid } = buildPatternGrid(form, resolution);
-  const maxCellSize = Math.min(grid.sx, grid.sy, grid.sz);
+  const cacheKey = gridFieldKey(form, resolution);
+  let context: PatternGridContext;
 
-  const noiseAt = (x: number, y: number, z: number) =>
-    noise.fbm(x / scale, y / scale, z / scale, octaves, persistence);
+  if (gridFieldCache?.key === cacheKey) {
+    context = gridFieldCache.context;
+  } else {
+    context = buildPatternGrid(form, resolution);
+    gridFieldCache = { key: cacheKey, context };
+  }
+
+  const iso = computeIso(context.histogram, context.sampleCount, form.threshold);
+  const { field, bounds, grid } = context;
+  const maxCellSize = Math.min(grid.sx, grid.sy, grid.sz);
+  const sampleGrid = createGridSampler(field, grid);
+  const { minX, maxX, minY, maxY, minZ, maxZ } = bounds;
+  const clip: ClipField = { iso, minX, maxX, minY, maxY, minZ, maxZ, sample: sampleGrid };
 
   return {
     iso,
     maxCellSize,
+    clip,
     inBounds: (x, y, z) => isInBounds(x, y, z, bounds),
-    noiseAt,
-    isSolid: (x, y, z) => isInBounds(x, y, z, bounds) && noiseAt(x, y, z) >= iso
+    noiseAt: sampleGrid,
+    isSolid: (x, y, z) => isInBounds(x, y, z, bounds) && sampleGrid(x, y, z) >= iso
   };
 };

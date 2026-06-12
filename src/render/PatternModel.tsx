@@ -16,18 +16,30 @@ interface Props {
 }
 
 export const PatternModel = ({ form }: Props) => {
-  const [debouncedForm] = useDebounce(form, 150);
+  const [debouncedForm] = useDebounce(form, 100);
 
-  const geometry = useMemo(
-    () => generateGeometry(debouncedForm, debouncedForm.previewResolution),
-    [debouncedForm]
-  );
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  const geometry = useMemo(() => {
+    if (debouncedForm.demoEnabled) return null;
+    return generateGeometry(debouncedForm, debouncedForm.previewResolution);
+  }, [debouncedForm]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
 
   const demoPatternField = useMemo(() => {
     if (!debouncedForm.demoEnabled) return null;
     return createPatternField(debouncedForm, debouncedForm.demoResolution);
-  }, [debouncedForm]);
+  }, [
+    debouncedForm.demoEnabled,
+    debouncedForm.demoResolution,
+    debouncedForm.width,
+    debouncedForm.height,
+    debouncedForm.depth,
+    debouncedForm.overflow,
+    debouncedForm.seed,
+    debouncedForm.scale,
+    debouncedForm.threshold,
+    debouncedForm.octaves,
+    debouncedForm.persistence
+  ]);
 
   const buildVolumeEdges = useMemo(
     () => new EdgesGeometry(new BoxGeometry(debouncedForm.width, debouncedForm.depth, debouncedForm.height)),
@@ -51,18 +63,20 @@ export const PatternModel = ({ form }: Props) => {
       {showDemo ? (
         <DemoModel form={debouncedForm} patternField={demoPatternField} />
       ) : (
-        <mesh geometry={geometry} renderOrder={1}>
-          <meshStandardMaterial
-            color="#FFDC00"
-            flatShading
-            metalness={0.1}
-            roughness={0.7}
-            transparent
-            opacity={0.5}
-            depthWrite={false}
-            side={DoubleSide}
-          />
-        </mesh>
+        geometry && (
+          <mesh geometry={geometry} renderOrder={1}>
+            <meshStandardMaterial
+              color="#FFDC00"
+              flatShading
+              metalness={0.1}
+              roughness={0.7}
+              transparent
+              opacity={0.5}
+              depthWrite={false}
+              side={DoubleSide}
+            />
+          </mesh>
+        )
       )}
 
       {/* build volume outline (excludes overflow) */}

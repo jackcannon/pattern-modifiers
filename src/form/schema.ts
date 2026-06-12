@@ -3,6 +3,9 @@ import { MathsTools } from 'swiss-ak';
 
 import { DEFAULT_BUILD_VOLUME } from './buildVolumePresets';
 
+export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
+export type DemoModelType = z.infer<typeof DemoModelSchema>;
+
 export const FormSchema = z.object({
   type: z.enum(['perlin']),
   width: z.number().min(0.01),
@@ -16,6 +19,10 @@ export const FormSchema = z.object({
   persistence: z.number().min(0.1).max(1),
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
+  demoEnabled: z.boolean(),
+  demoModel: DemoModelSchema,
+  demoSize: z.number().min(5).max(200),
+  demoResolution: z.number().int().min(8).max(128),
   fileName: z.string()
 });
 
@@ -23,7 +30,7 @@ export type FormSchemaType = typeof FormSchema;
 export type FormObject = z.infer<FormSchemaType>;
 export type FormPropName = keyof FormObject;
 
-export type FormInputType = 'slider' | 'number' | 'text' | 'switch' | 'boolean' | 'toggle_button';
+export type FormInputType = 'slider' | 'number' | 'text' | 'switch' | 'boolean' | 'toggle_button' | 'select';
 export interface FormInputConfig {
   paramName: string;
   type: FormInputType;
@@ -186,6 +193,55 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 16,
     max: 256
   },
+  demoEnabled: {
+    paramName: 'de',
+    type: 'boolean',
+    displayName: 'Demo Mode',
+    description: 'Preview how the pattern modifier affects a sample model sitting on the build plate',
+    defaultValue: false
+  },
+  demoModel: {
+    paramName: 'dm',
+    type: 'select',
+    displayName: 'Demo Model',
+    description: 'Example object to show clipped by the pattern modifier',
+    defaultValue: 'cube',
+    options: [
+      { value: 'cube', label: 'Cube' },
+      { value: 'sphere', label: 'Sphere' },
+      { value: 'teapot', label: 'Teapot' },
+      { value: 'suzanne', label: 'Suzanne' },
+      { value: 'bunny', label: 'Stanford Bunny' },
+      { value: 'benchy', label: 'Benchy' }
+    ],
+    show: (form) => form.demoEnabled
+  },
+  demoSize: {
+    paramName: 'ds',
+    type: 'slider',
+    displayName: 'Demo Size (Height)',
+    description: 'Height of the demo model in millimetres',
+    defaultValue: 50,
+    unit: 'mm',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 5,
+    max: 200,
+    show: (form) => form.demoEnabled
+  },
+  demoResolution: {
+    paramName: 'dr',
+    type: 'slider',
+    displayName: 'Demo Resolution',
+    description: 'Pattern detail used for demo clipping — grid cells along the longest axis',
+    warning: 'Higher values improve demo quality but slow down updates',
+    defaultValue: 36,
+    sliderStep: 4,
+    inputStep: 1,
+    min: 8,
+    max: 128,
+    show: (form) => form.demoEnabled
+  },
   fileName: {
     paramName: 'fn',
     type: 'text',
@@ -202,6 +258,7 @@ export const formGroups: (FormPropName[] | FormPropName)[] = [
   ['width', 'depth', 'height', 'overflow'],
   ['scale', 'threshold', 'seed', 'octaves', 'persistence'],
   ['previewResolution', 'exportResolution'],
+  ['demoEnabled', 'demoModel', 'demoSize', 'demoResolution'],
   ['fileName']
 ];
 

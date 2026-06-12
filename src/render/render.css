@@ -1,10 +1,36 @@
 .render {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   background-color: var(--render-bg);
+}
+
+.render-focus-controls {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.render-focus-button {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  width: 2rem;
+  height: 2rem;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  .render-focus-button {
+    background-color: rgba(50, 50, 50, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 .render canvas {

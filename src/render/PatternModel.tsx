@@ -2,11 +2,13 @@ import { useEffect, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
 import { BoxGeometry, DoubleSide, EdgesGeometry } from 'three';
 
-import { FormObject } from '../form/schema';
+import { createPatternField } from '../generate/patternField';
 import { generateGeometry } from '../generate/generate';
+import { FormObject } from '../form/schema';
 
 import { BuildPlate } from './BuildPlate';
 import { BuildVolumeGrid } from './BuildVolumeGrid';
+import { DemoModel } from './DemoModel';
 import { OriginCursor } from './OriginCursor';
 
 interface Props {
@@ -22,6 +24,11 @@ export const PatternModel = ({ form }: Props) => {
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 
+  const demoPatternField = useMemo(() => {
+    if (!debouncedForm.demoEnabled) return null;
+    return createPatternField(debouncedForm, debouncedForm.demoResolution);
+  }, [debouncedForm]);
+
   const buildVolumeEdges = useMemo(
     () => new EdgesGeometry(new BoxGeometry(debouncedForm.width, debouncedForm.depth, debouncedForm.height)),
     [debouncedForm.width, debouncedForm.depth, debouncedForm.height]
@@ -29,6 +36,7 @@ export const PatternModel = ({ form }: Props) => {
   useEffect(() => () => buildVolumeEdges.dispose(), [buildVolumeEdges]);
 
   const cursorSize = Math.max(debouncedForm.width, debouncedForm.height, debouncedForm.depth);
+  const showDemo = debouncedForm.demoEnabled && demoPatternField;
 
   return (
     <>
@@ -40,18 +48,22 @@ export const PatternModel = ({ form }: Props) => {
 
       <OriginCursor size={cursorSize} />
 
-      <mesh geometry={geometry} renderOrder={1}>
-        <meshStandardMaterial
-          color="#FFDC00"
-          flatShading
-          metalness={0.1}
-          roughness={0.7}
-          transparent
-          opacity={0.5}
-          depthWrite={false}
-          side={DoubleSide}
-        />
-      </mesh>
+      {showDemo ? (
+        <DemoModel form={debouncedForm} patternField={demoPatternField} />
+      ) : (
+        <mesh geometry={geometry} renderOrder={1}>
+          <meshStandardMaterial
+            color="#FFDC00"
+            flatShading
+            metalness={0.1}
+            roughness={0.7}
+            transparent
+            opacity={0.5}
+            depthWrite={false}
+            side={DoubleSide}
+          />
+        </mesh>
+      )}
 
       {/* build volume outline (excludes overflow) */}
       <lineSegments geometry={buildVolumeEdges} position={[0, 0, debouncedForm.height / 2]} renderOrder={2}>

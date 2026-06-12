@@ -1,9 +1,12 @@
 import {
   Checkbox,
+  FormControl,
   Grid2,
   IconButton,
   Input,
   InputAdornment,
+  MenuItem,
+  Select,
   Slider,
   Switch,
   ToggleButton,
@@ -192,6 +195,26 @@ export const FormInputToggleButton = <T extends unknown>({ config, value, onChan
   );
 };
 
+export const FormInputSelect = <T extends unknown>({ propName, config, value, onChange }: InputProps<T>) => {
+  return (
+    <Grid2 flex={1} flexGrow={1}>
+      <FormControl size="small" fullWidth>
+        <Select
+          value={value}
+          onChange={(event) => onChange(event.target.value as T)}
+          inputProps={{ 'aria-labelledby': `input-slider-${propName}` }}
+        >
+          {config.options?.map((opt) => (
+            <MenuItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Grid2>
+  );
+};
+
 export const FormInput = <T extends unknown>(props: InputProps<T>) => {
   const { propName, config, placeholder } = props;
 
@@ -214,6 +237,8 @@ export const FormInput = <T extends unknown>(props: InputProps<T>) => {
         return <FormInputBoolean {...props} />;
       case 'toggle_button':
         return <FormInputToggleButton {...props} />;
+      case 'select':
+        return <FormInputSelect {...props} />;
       default:
         return <FormInputSlider {...props} />;
     }

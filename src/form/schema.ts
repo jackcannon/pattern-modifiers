@@ -8,10 +8,10 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
-const NOISE_PATTERN_TYPES = ["perlin","simplex"] as const satisfies readonly PatternType[];
+const NOISE_PATTERN_TYPES = ["perlin","simplex","ridged"] as const satisfies readonly PatternType[];
 const CELL_PATTERN_TYPES = ["worley","voronoi"] as const satisfies readonly PatternType[];
 
 export const FormSchema = z.object({
@@ -83,7 +83,7 @@ export const isFieldActive = (config: FormInputConfig, form: FormObject): boolea
 export const getDefaultFileName = (form: FormObject) => {
   const parts = [`pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}`];
 
-  if ((["perlin","simplex"] as PatternType[]).includes(form.type)) {
+  if ((["perlin","simplex","ridged"] as PatternType[]).includes(form.type)) {
     parts.push(`sc${form.scale}`);
   }
 
@@ -174,10 +174,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description: 'Random seed for the pattern — same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
-    patternIds: ["perlin","simplex","worley","voronoi"],
+    patternIds: ["perlin","simplex","ridged","worley","voronoi"],
     paramNameByPattern: {
       perlin: 'per_s',
       simplex: 'sim_s',
+      ridged: 'rid_s',
       worley: 'wor_s',
       voronoi: 'vor_s'
     },
@@ -194,10 +195,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.5,
     min: 1,
     max: 300,
-    patternIds: ["perlin","simplex","worley","voronoi"],
+    patternIds: ["perlin","simplex","ridged","worley","voronoi"],
     paramNameByPattern: {
       perlin: 'per_sc',
       simplex: 'sim_sc',
+      ridged: 'rid_sc',
       worley: 'wor_sc',
       voronoi: 'vor_sc'
     }
@@ -212,10 +214,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 6,
-    patternIds: ["perlin","simplex"],
+    patternIds: ["perlin","simplex","ridged"],
     paramNameByPattern: {
       perlin: 'per_oc',
-      simplex: 'sim_oc'
+      simplex: 'sim_oc',
+      ridged: 'rid_oc'
     }
   },
   persistence: {
@@ -228,10 +231,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 0.1,
     max: 1,
-    patternIds: ["perlin","simplex"],
+    patternIds: ["perlin","simplex","ridged"],
     paramNameByPattern: {
       perlin: 'per_p',
-      simplex: 'sim_p'
+      simplex: 'sim_p',
+      ridged: 'rid_p'
     },
     show: (form) => form.octaves > 1
   },

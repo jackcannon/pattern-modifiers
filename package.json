@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bunx --bun vite",
     "build": "tsc && bunx --bun vite build",
-    "preview": "bunx --bun vite preview"
+    "preview": "bunx --bun vite preview",
+    "generate-icons": "bun scripts/generate-icons.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -23,6 +24,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react-swc": "^3.0.0",

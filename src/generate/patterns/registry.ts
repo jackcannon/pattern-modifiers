@@ -1,6 +1,7 @@
 import { perlinPattern } from './perlinPattern';
 import { simplexPattern } from './simplexPattern';
 import { worleyPattern } from './worleyPattern';
+import { voronoiPattern } from './voronoiPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -9,7 +10,8 @@ import type { PatternCategory, PatternDefinition } from './types';
 export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   perlinPattern,
   simplexPattern,
-  worleyPattern
+  worleyPattern,
+  voronoiPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

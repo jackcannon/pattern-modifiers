@@ -8,11 +8,11 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 const NOISE_PATTERN_TYPES = ["perlin","simplex"] as const satisfies readonly PatternType[];
-const CELL_PATTERN_TYPES = ["worley"] as const satisfies readonly PatternType[];
+const CELL_PATTERN_TYPES = ["worley","voronoi"] as const satisfies readonly PatternType[];
 
 export const FormSchema = z.object({
   type: PatternTypeSchema,
@@ -87,7 +87,7 @@ export const getDefaultFileName = (form: FormObject) => {
     parts.push(`sc${form.scale}`);
   }
 
-  else if ((["worley"] as PatternType[]).includes(form.type)) {
+  else if ((["worley","voronoi"] as PatternType[]).includes(form.type)) {
     parts.push(`sc${form.scale}`);
   }
 
@@ -174,11 +174,12 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description: 'Random seed for the pattern — same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
-    patternIds: ["perlin","simplex","worley"],
+    patternIds: ["perlin","simplex","worley","voronoi"],
     paramNameByPattern: {
       perlin: 'per_s',
       simplex: 'sim_s',
-      worley: 'wor_s'
+      worley: 'wor_s',
+      voronoi: 'vor_s'
     },
     randomize: () => Math.floor(Math.random() * 1000000)
   },
@@ -193,11 +194,12 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.5,
     min: 1,
     max: 300,
-    patternIds: ["perlin","simplex","worley"],
+    patternIds: ["perlin","simplex","worley","voronoi"],
     paramNameByPattern: {
       perlin: 'per_sc',
       simplex: 'sim_sc',
-      worley: 'wor_sc'
+      worley: 'wor_sc',
+      voronoi: 'vor_sc'
     }
   },
   octaves: {

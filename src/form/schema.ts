@@ -8,11 +8,11 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 const NOISE_PATTERN_TYPES = ["perlin","simplex"] as const satisfies readonly PatternType[];
-
+const CELL_PATTERN_TYPES = ["worley"] as const satisfies readonly PatternType[];
 
 export const FormSchema = z.object({
   type: PatternTypeSchema,
@@ -84,6 +84,10 @@ export const getDefaultFileName = (form: FormObject) => {
   const parts = [`pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}`];
 
   if ((["perlin","simplex"] as PatternType[]).includes(form.type)) {
+    parts.push(`sc${form.scale}`);
+  }
+
+  else if ((["worley"] as PatternType[]).includes(form.type)) {
     parts.push(`sc${form.scale}`);
   }
 
@@ -170,10 +174,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description: 'Random seed for the pattern — same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
-    patternIds: ["perlin","simplex"],
+    patternIds: ["perlin","simplex","worley"],
     paramNameByPattern: {
       perlin: 'per_s',
-      simplex: 'sim_s'
+      simplex: 'sim_s',
+      worley: 'wor_s'
     },
     randomize: () => Math.floor(Math.random() * 1000000)
   },
@@ -188,10 +193,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.5,
     min: 1,
     max: 300,
-    patternIds: ["perlin","simplex"],
+    patternIds: ["perlin","simplex","worley"],
     paramNameByPattern: {
       perlin: 'per_sc',
-      simplex: 'sim_sc'
+      simplex: 'sim_sc',
+      worley: 'wor_sc'
     }
   },
   octaves: {

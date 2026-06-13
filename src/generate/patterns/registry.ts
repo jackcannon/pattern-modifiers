@@ -1,5 +1,6 @@
 import { perlinPattern } from './perlinPattern';
 import { simplexPattern } from './simplexPattern';
+import { worleyPattern } from './worleyPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -7,7 +8,8 @@ import type { PatternCategory, PatternDefinition } from './types';
 /** Ordered list of registered patterns. Add or remove entries here */
 export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   perlinPattern,
-  simplexPattern
+  simplexPattern,
+  worleyPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

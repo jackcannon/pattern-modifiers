@@ -27,6 +27,29 @@ export interface PatternGridContext {
   sampleCount: number;
 }
 
+export interface ClipRuntime {
+  iso: number;
+  solidHigh: boolean;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+  samples: Float32Array;
+  x0: number;
+  y0: number;
+  z0: number;
+  invSx: number;
+  invSy: number;
+  invSz: number;
+  strideY: number;
+  strideZ: number;
+  maxI: number;
+  maxJ: number;
+  maxK: number;
+}
+
 export interface ClipField {
   iso: number;
   minX: number;
@@ -36,12 +59,15 @@ export interface ClipField {
   minZ: number;
   maxZ: number;
   sample(x: number, y: number, z: number): number;
+  runtime: ClipRuntime;
 }
 
 export interface PatternField {
   iso: number;
+  solidHigh: boolean;
   maxCellSize: number;
   clip: ClipField;
+  clipRuntime: ClipRuntime;
   inBounds(x: number, y: number, z: number): boolean;
   noiseAt(x: number, y: number, z: number): number;
   isSolid(x: number, y: number, z: number): boolean;
@@ -55,11 +81,11 @@ export interface PatternField {
  * @returns {PatternGridContext} field samples and metadata
  */
 export const buildPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
-  const { width, height, depth, overflow, seed, scale, threshold, octaves, persistence } = form;
+  const { width, height, depth, seed, scale, threshold, octaves, persistence } = form;
 
-  const outerW = width + overflow * 2;
-  const outerD = depth + overflow * 2;
-  const outerH = height + overflow * 2;
+  const outerW = width;
+  const outerD = depth;
+  const outerH = height;
 
   const longest = Math.max(outerW, outerD, outerH);
   const cellsX = Math.max(2, Math.round((outerW / longest) * resolution));
@@ -76,7 +102,7 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
     nz: cellsZ + 3,
     x0: -outerW / 2 - sx,
     y0: -outerD / 2 - sy,
-    z0: -overflow - sz,
+    z0: -sz,
     sx,
     sy,
     sz
@@ -87,8 +113,8 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
     maxX: outerW / 2,
     minY: -outerD / 2,
     maxY: outerD / 2,
-    minZ: -overflow,
-    maxZ: height + overflow
+    minZ: 0,
+    maxZ: height
   };
 
   const noise = new PerlinNoise3D(seed);
@@ -123,35 +149,61 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
     }
   }
 
-  const targetSolid = (sampleCount * threshold) / 100;
-  let above = 0;
-  let isoBin = BINS - 1;
-  while (isoBin > 0 && above < targetSolid) {
-    above += histogram[isoBin];
-    isoBin--;
+  const targetBelow = (sampleCount * threshold) / 100;
+  let below = 0;
+  let isoBin = 0;
+  while (isoBin < BINS - 1 && below < targetBelow) {
+    below += histogram[isoBin];
+    isoBin++;
   }
-  const iso = (isoBin + 1) / BINS;
+  const iso = isoBin / BINS;
 
   return { field, grid, iso, noise, scale, octaves, persistence, bounds, histogram, sampleCount };
 };
 
-const computeIso = (histogram: Uint32Array, sampleCount: number, threshold: number) => {
-  const targetSolid = (sampleCount * threshold) / 100;
-  let above = 0;
-  let isoBin = histogram.length - 1;
-  while (isoBin > 0 && above < targetSolid) {
-    above += histogram[isoBin];
-    isoBin--;
+/**
+ * Prepares scalar field for marching cubes. When low values are solid (`thresholdInverse` false),
+ * reflects interior samples around iso so MC can always treat high values as solid; pad cells stay outside.
+ *
+ * @param {Float32Array} field - sampled noise grid including outside pad cells
+ * @param {number} iso - isosurface level
+ * @param {boolean} thresholdInverse - when true, high values are solid; when false, low values are solid
+ * @returns {Float32Array} field ready for marching cubes (may reuse `field` when inverse is on)
+ */
+export const prepareMarchingCubesField = (
+  field: Float32Array,
+  iso: number,
+  thresholdInverse: boolean
+): Float32Array => {
+  if (thresholdInverse) return field;
+  const mcField = new Float32Array(field.length);
+  for (let i = 0; i < field.length; i++) {
+    mcField[i] = field[i] <= OUTSIDE / 2 ? OUTSIDE : 2 * iso - field[i];
   }
-  return (isoBin + 1) / histogram.length;
+  return mcField;
+};
+
+const computeIso = (histogram: Uint32Array, sampleCount: number, threshold: number) => {
+  const targetBelow = (sampleCount * threshold) / 100;
+  let below = 0;
+  let isoBin = 0;
+  while (isoBin < histogram.length - 1 && below < targetBelow) {
+    below += histogram[isoBin];
+    isoBin++;
+  }
+  return isoBin / histogram.length;
 };
 
 interface GridFieldCacheEntry {
   key: string;
   context: PatternGridContext;
+  clipRuntime: ClipRuntime;
+  sampleGrid: (x: number, y: number, z: number) => number;
 }
 
 let gridFieldCache: GridFieldCacheEntry | null = null;
+let stablePatternField: PatternField | null = null;
+let stableFieldGridKey: string | null = null;
 
 const gridFieldKey = (form: FormObject, resolution: number) =>
   [
@@ -159,7 +211,6 @@ const gridFieldKey = (form: FormObject, resolution: number) =>
     form.width,
     form.height,
     form.depth,
-    form.overflow,
     form.seed,
     form.scale,
     form.octaves,
@@ -168,6 +219,39 @@ const gridFieldKey = (form: FormObject, resolution: number) =>
 
 const isInBounds = (x: number, y: number, z: number, bounds: PatternBounds) =>
   x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY && z >= bounds.minZ && z <= bounds.maxZ;
+
+const createClipRuntime = (
+  field: Float32Array,
+  grid: GridSpec,
+  iso: number,
+  bounds: PatternBounds,
+  solidHigh: boolean
+): ClipRuntime => {
+  const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
+
+  return {
+    iso,
+    solidHigh,
+    minX: bounds.minX,
+    maxX: bounds.maxX,
+    minY: bounds.minY,
+    maxY: bounds.maxY,
+    minZ: bounds.minZ,
+    maxZ: bounds.maxZ,
+    samples: field,
+    x0,
+    y0,
+    z0,
+    invSx: 1 / sx,
+    invSy: 1 / sy,
+    invSz: 1 / sz,
+    strideY: nx,
+    strideZ: nx * ny,
+    maxI: nx - 2,
+    maxJ: ny - 2,
+    maxK: nz - 2
+  };
+};
 
 const createGridSampler = (field: Float32Array, grid: GridSpec) => {
   const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
@@ -223,27 +307,66 @@ const createGridSampler = (field: Float32Array, grid: GridSpec) => {
 export const createPatternField = (form: FormObject, resolution: number): PatternField => {
   const cacheKey = gridFieldKey(form, resolution);
   let context: PatternGridContext;
+  let clipRuntime: ClipRuntime;
+  let sampleGrid: (x: number, y: number, z: number) => number;
 
   if (gridFieldCache?.key === cacheKey) {
     context = gridFieldCache.context;
+    clipRuntime = gridFieldCache.clipRuntime;
+    sampleGrid = gridFieldCache.sampleGrid;
   } else {
     context = buildPatternGrid(form, resolution);
-    gridFieldCache = { key: cacheKey, context };
+    sampleGrid = createGridSampler(context.field, context.grid);
+    clipRuntime = createClipRuntime(context.field, context.grid, context.iso, context.bounds, form.thresholdInverse);
+    gridFieldCache = { key: cacheKey, context, clipRuntime, sampleGrid };
+    stableFieldGridKey = null;
   }
 
   const iso = computeIso(context.histogram, context.sampleCount, form.threshold);
-  const { field, bounds, grid } = context;
-  const maxCellSize = Math.min(grid.sx, grid.sy, grid.sz);
-  const sampleGrid = createGridSampler(field, grid);
-  const { minX, maxX, minY, maxY, minZ, maxZ } = bounds;
-  const clip: ClipField = { iso, minX, maxX, minY, maxY, minZ, maxZ, sample: sampleGrid };
+  const solidHigh = form.thresholdInverse;
+  clipRuntime.iso = iso;
+  clipRuntime.solidHigh = solidHigh;
 
-  return {
+  const { bounds, grid } = context;
+  const maxCellSize = Math.min(grid.sx, grid.sy, grid.sz);
+  const { minX, maxX, minY, maxY, minZ, maxZ } = bounds;
+
+  if (stablePatternField && stableFieldGridKey === cacheKey) {
+    stablePatternField.iso = iso;
+    stablePatternField.solidHigh = solidHigh;
+    stablePatternField.maxCellSize = maxCellSize;
+    stablePatternField.clip.iso = iso;
+    stablePatternField.clip.runtime.solidHigh = solidHigh;
+    return stablePatternField;
+  }
+
+  const clip: ClipField = {
     iso,
+    minX,
+    maxX,
+    minY,
+    maxY,
+    minZ,
+    maxZ,
+    sample: sampleGrid,
+    runtime: clipRuntime
+  };
+
+  stablePatternField = {
+    iso,
+    solidHigh,
     maxCellSize,
     clip,
+    clipRuntime,
     inBounds: (x, y, z) => isInBounds(x, y, z, bounds),
     noiseAt: sampleGrid,
-    isSolid: (x, y, z) => isInBounds(x, y, z, bounds) && sampleGrid(x, y, z) >= iso
+    isSolid: (x, y, z) => {
+      if (!isInBounds(x, y, z, bounds)) return false;
+      const value = sampleGrid(x, y, z);
+      return clipRuntime.solidHigh ? value >= clipRuntime.iso : value <= clipRuntime.iso;
+    }
   };
+  stableFieldGridKey = cacheKey;
+
+  return stablePatternField;
 };

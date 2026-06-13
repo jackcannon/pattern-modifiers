@@ -49,14 +49,15 @@ export interface GridSpec {
 
 /**
  * Extracts an isosurface from a scalar field using the marching cubes algorithm.
- * Field is indexed as i + j * nx + k * nx * ny. Regions where field > iso are solid.
+ * Field is indexed as i + j * nx + k * nx * ny. By default regions where field >= iso are solid.
  *
  * @param {Float32Array} field - scalar field samples
  * @param {GridSpec} grid - grid dimensions and world mapping
  * @param {number} iso - isosurface level
+ * @param {boolean} solidHigh - when true, regions where field >= iso are solid; when false, field <= iso
  * @returns {Float32Array} flat triangle soup positions (x, y, z per vertex)
  */
-export const marchingCubes = (field: Float32Array, grid: GridSpec, iso: number): Float32Array => {
+export const marchingCubes = (field: Float32Array, grid: GridSpec, iso: number, solidHigh = true): Float32Array => {
   const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
   const nxy = nx * ny;
 
@@ -82,7 +83,8 @@ export const marchingCubes = (field: Float32Array, grid: GridSpec, iso: number):
 
         let cubeIndex = 0;
         for (let c = 0; c < 8; c++) {
-          if (cornerVals[c] < iso) cubeIndex |= 1 << c;
+          const outside = solidHigh ? cornerVals[c] < iso : cornerVals[c] > iso;
+          if (outside) cubeIndex |= 1 << c;
         }
 
         const edgeBits = EDGE_TABLE[cubeIndex];
@@ -108,8 +110,8 @@ export const marchingCubes = (field: Float32Array, grid: GridSpec, iso: number):
         const triOffset = cubeIndex * 16;
         for (let t = 0; TRI_TABLE[triOffset + t] !== -1; t += 3) {
           const e1 = TRI_TABLE[triOffset + t];
-          const e2 = TRI_TABLE[triOffset + t + 1];
-          const e3 = TRI_TABLE[triOffset + t + 2];
+          const e2 = TRI_TABLE[triOffset + t + (solidHigh ? 1 : 2)];
+          const e3 = TRI_TABLE[triOffset + t + (solidHigh ? 2 : 1)];
 
           positions.push(
             vertList[e1 * 3],

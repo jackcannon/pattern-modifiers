@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg
+  width="100%"
+  height="100%"
+  viewBox="0 0 88 88"
+  version="1.1"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  xml:space="preserve"
+  xmlns:serif="http://www.serif.com/"
+  style="fill-rule: evenodd; clip-rule: evenodd; stroke-linecap: round"
+>
+  <style>
+    .lines {
+      stroke: #181818;
+    }
+    @media (prefers-color-scheme: dark) {
+      .lines {
+        stroke: #f8f8f8;
+      }
+    }
+  </style>
+  <g id="Shaded">
+    <path d="M6.602,64.391l0.07,-41.393l37.137,20.392l0,41.667l-37.207,-20.666Z" style="fill: #005aa8" />
+    <path d="M81.25,22.998l-0.265,41.235l-37.176,20.823l0,-41.666l37.441,-20.392Z" style="fill: #0074d9" />
+    <path d="M6.657,23.021l37.093,-20.578l37.1,20.589l-37.041,20.358l-37.152,-20.369Z" style="fill: #0f8fff" />
+  </g>
+  <path
+    d="M81.25,24.388l0,38.724c0,0.908 -0.492,1.745 -1.286,2.186l-35,19.444c-0.755,0.42 -1.673,0.42 -2.428,0l-35,-19.444c-0.794,-0.441 -1.286,-1.278 -1.286,-2.186l-0,-38.724c-0,-0.908 0.492,-1.745 1.286,-2.186l35,-19.444c0.755,-0.42 1.673,-0.42 2.428,-0l35,19.444c0.793,0.441 1.286,1.278 1.286,2.186Z"
+    class="lines"
+    style="fill: none; fill-rule: nonzero; stroke-width: 4.17px"
+  />
+  <path
+    d="M6.657,23.143l35.879,19.932c0.755,0.42 1.673,0.42 2.428,0l35.886,-19.859"
+    class="lines"
+    style="fill: none; fill-rule: nonzero; stroke-width: 4.17px; stroke-linejoin: round"
+  />
+  <path
+    d="M43.75,84.697l0,-41.339"
+    class="lines"
+    style="fill: none; fill-rule: nonzero; stroke-width: 4.17px; stroke-linejoin: round"
+  />
+</svg>

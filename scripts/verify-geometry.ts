@@ -41,7 +41,7 @@ if (Math.abs(vol - expected) / expected > 0.05) throw new Error('FAIL: volume de
 
 // --- 2. full pipeline: bounding box + watertightness
 
-const form = { ...createDefaultFormObj(), width: 100, depth: 80, height: 60, overflow: 1, exportResolution: 64, seed: 1234 };
+const form = { ...createDefaultFormObj(), width: 100, depth: 80, height: 60, exportResolution: 64, seed: 1234 };
 const geom = generateGeometry(form, form.exportResolution);
 geom.computeBoundingBox();
 const bb = geom.boundingBox!;
@@ -49,9 +49,9 @@ console.log(
   `bbox: x[${bb.min.x.toFixed(2)}, ${bb.max.x.toFixed(2)}] y[${bb.min.y.toFixed(2)}, ${bb.max.y.toFixed(2)}] z[${bb.min.z.toFixed(2)}, ${bb.max.z.toFixed(2)}]`
 );
 const close = (a: number, b: number) => Math.abs(a - b) < 1e-3;
-if (!close(bb.min.x, -51) || !close(bb.max.x, 51)) throw new Error('FAIL: width bounds (expected ±51)');
-if (!close(bb.min.y, -41) || !close(bb.max.y, 41)) throw new Error('FAIL: depth bounds (expected ±41)');
-if (!close(bb.min.z, -1) || !close(bb.max.z, 61)) throw new Error('FAIL: height bounds (expected -1..61)');
+if (!close(bb.min.x, -50) || !close(bb.max.x, 50)) throw new Error('FAIL: width bounds (expected ±50)');
+if (!close(bb.min.y, -40) || !close(bb.max.y, 40)) throw new Error('FAIL: depth bounds (expected ±40)');
+if (!close(bb.min.z, 0) || !close(bb.max.z, 60)) throw new Error('FAIL: height bounds (expected 0..60)');
 
 // watertight check: every edge must be shared by exactly 2 triangles (opposite directions)
 const positions = geom.getAttribute('position').array as Float32Array;

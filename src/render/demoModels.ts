@@ -1,10 +1,30 @@
-import { BoxGeometry, BufferGeometry, Mesh, Object3D, SphereGeometry, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, Mesh, Object3D, SphereGeometry, Uint32BufferAttribute } from 'three';
 import { TeapotGeometry } from 'three/examples/jsm/geometries/TeapotGeometry.js';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 import { DemoModelType } from '../form/schema';
 
-const tempSize = new Vector3();
+const cloneIndexedGeometry = (geometry: BufferGeometry): BufferGeometry => {
+  const cloned = new BufferGeometry();
+  const position = geometry.getAttribute('position') as BufferAttribute;
+  cloned.setAttribute('position', new BufferAttribute(new Float32Array(position.array as Float32Array), 3));
+
+  const index = geometry.getIndex();
+  if (index) {
+    const array = index.array;
+    if (array instanceof Uint32Array) {
+      cloned.setIndex(new Uint32BufferAttribute(new Uint32Array(array), 1));
+    } else if (array instanceof Uint16Array) {
+      cloned.setIndex(new Uint32BufferAttribute(new Uint32Array(array), 1));
+    } else {
+      const next = new Uint32Array(index.count);
+      for (let i = 0; i < index.count; i++) next[i] = index.getX(i);
+      cloned.setIndex(new Uint32BufferAttribute(next, 1));
+    }
+  }
+
+  return cloned;
+};
 
 export const createCubeGeometry = (): BufferGeometry => new BoxGeometry(1, 1, 1);
 
@@ -35,28 +55,30 @@ export const extractMeshGeometry = (object: Object3D): BufferGeometry => {
  * @returns {BufferGeometry} oriented geometry (caller owns disposal)
  */
 export const orientDemoGeometry = (geometry: BufferGeometry, model: DemoModelType): BufferGeometry => {
-  const oriented = geometry.clone();
-
   switch (model) {
     case 'cube':
     case 'sphere':
     case 'benchy':
-      break;
-    case 'teapot':
+      return geometry;
+    case 'teapot': {
+      const oriented = geometry.clone();
       // TeapotGeometry is Y-up; rotate onto the build plate with lid facing +Z
       oriented.rotateX(-Math.PI / 2);
       oriented.rotateY(Math.PI);
-      break;
-    case 'suzanne':
+      return oriented;
+    }
+    case 'suzanne': {
+      const oriented = geometry.clone();
       oriented.rotateX(Math.PI / 2);
-      break;
-    case 'bunny':
+      return oriented;
+    }
+    case 'bunny': {
+      const oriented = geometry.clone();
       // Stanford bunny OBJ is Y-up
       oriented.rotateX(Math.PI / 2);
-      break;
+      return oriented;
+    }
   }
-
-  return oriented;
 };
 
 /**
@@ -65,23 +87,54 @@ export const orientDemoGeometry = (geometry: BufferGeometry, model: DemoModelTyp
  *
  * @param {BufferGeometry} geometry - source geometry in printer orientation
  * @param {number} targetSize - desired height in mm
+ * @param {boolean} inPlace - mutate `geometry` instead of cloning indexed sources
  * @returns {BufferGeometry} positioned geometry (caller owns disposal)
  */
-export const prepareDemoGeometry = (geometry: BufferGeometry, targetSize: number): BufferGeometry => {
-  const prepared = geometry.getIndex() ? geometry.clone() : mergeVertices(geometry);
-  prepared.computeBoundingBox();
+export const prepareDemoGeometry = (
+  geometry: BufferGeometry,
+  targetSize: number,
+  inPlace = false
+): BufferGeometry => {
+  const prepared = geometry.getIndex()
+    ? inPlace
+      ? geometry
+      : cloneIndexedGeometry(geometry)
+    : mergeVertices(geometry);
 
-  const box = prepared.boundingBox!;
-  box.getSize(tempSize);
-  const scale = targetSize / tempSize.z;
-  prepared.scale(scale, scale, scale);
+  const coords = (prepared.getAttribute('position').array as Float32Array);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
 
-  prepared.computeBoundingBox();
-  const scaled = prepared.boundingBox!;
-  const center = scaled.getCenter(new Vector3());
-  prepared.translate(-center.x, -center.y, -scaled.min.z);
+  for (let i = 0; i < coords.length; i += 3) {
+    const x = coords[i];
+    const y = coords[i + 1];
+    const z = coords[i + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
 
-  prepared.computeVertexNormals();
+  const scale = targetSize / (maxZ - minZ);
+  const centerX = (minX + maxX) * 0.5;
+  const centerY = (minY + maxY) * 0.5;
+
+  for (let i = 0; i < coords.length; i += 3) {
+    coords[i] = (coords[i] - centerX) * scale;
+    coords[i + 1] = (coords[i + 1] - centerY) * scale;
+    coords[i + 2] = (coords[i + 2] - minZ) * scale;
+  }
+
+  prepared.getAttribute('position').needsUpdate = true;
+  prepared.boundingBox = null;
+  prepared.boundingSphere = null;
+
   return prepared;
 };
 
@@ -106,14 +159,15 @@ export const createDemoGeometry = (
     case 'bunny':
     case 'benchy':
       if (!externalSource) throw new Error(`${model} geometry not loaded`);
-      base = externalSource.clone();
+      base = cloneIndexedGeometry(externalSource);
       break;
   }
 
   const oriented = orientDemoGeometry(base, model);
-  if (oriented !== base) base.dispose();
+  if (oriented !== base) {
+    base.dispose();
+    return prepareDemoGeometry(oriented, size, true);
+  }
 
-  const prepared = prepareDemoGeometry(oriented, size);
-  oriented.dispose();
-  return prepared;
+  return prepareDemoGeometry(base, size, true);
 };

@@ -1,105 +1,40 @@
 import { ZodSchema } from 'zod';
 import { useEffect, useState } from 'react';
 
-import { formConfig, FormObject, FormPropName } from './form/schema';
+import { FormObject } from './form/schema';
+import { hasShareQuery, queryToForm, stripQueryFromUrl } from './form/shareUrl';
 
-const paramNameDictionary = Object.fromEntries(Object.entries(formConfig).map(([key, value]) => [value.paramName, key]));
+interface InitialState {
+  form: FormObject;
+  consumedShareQuery: boolean;
+}
 
-const queryToObject = (query: string, defaultValues: FormObject): FormObject => {
-  const params = Object.fromEntries(new URLSearchParams(query));
+const initialise = (schema: ZodSchema, getDefaultForm: () => FormObject): InitialState => {
+  const defaults = schema.parse(getDefaultForm()) as FormObject;
 
-  let result: FormObject = { ...defaultValues };
-
-  for (const [paramName, value] of Object.entries(params)) {
-    const key = paramNameDictionary[paramName];
-    if (!key) continue;
-
-    const config = formConfig[key as FormPropName];
-    if (!config) continue;
-
-    let parsedValue: any = value;
-    if (['number', 'slider'].includes(config.type)) {
-      parsedValue = parseFloat(value);
-    }
-    if (config.type === 'toggle_button') {
-      const num = parseFloat(value);
-      parsedValue = isNaN(num) ? value : num;
-    }
-    if (['switch', 'boolean'].includes(config.type)) {
-      parsedValue = Boolean(parseInt(value));
-    }
-
-    result = {
-      ...result,
-      [key]: parsedValue
-    };
+  if (!hasShareQuery(window.location.search)) {
+    return { form: defaults, consumedShareQuery: false };
   }
 
-  return result;
-};
-const objectToQuery = (obj: FormObject): string => {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(obj)) {
-    const config = formConfig[key as FormPropName];
-
-    let valueStr = value.toString();
-    if (['switch', 'boolean'].includes(config.type)) {
-      valueStr = value ? '1' : '0';
-    }
-
-    params.set(config.paramName, valueStr);
-  }
-
-  return params.toString();
-};
-
-const initialise = <T>(schema: ZodSchema, backup: object): T => {
-  const startForm = schema.parse(backup);
   try {
-    const query = window.location.search;
-    const parsed = queryToObject(query, startForm);
-    const data = schema.parse(parsed);
-    return data;
+    const parsed = queryToForm(window.location.search, defaults);
+    return { form: schema.parse(parsed) as FormObject, consumedShareQuery: true };
   } catch (e) {
-    console.log('error parsing query', e);
+    console.log('error parsing share query', e);
+    return { form: defaults, consumedShareQuery: false };
   }
-  return startForm;
-};
-
-let debounceTimer: ReturnType<typeof setTimeout>;
-const debounce = (callback: () => void, time: number) => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(callback, time);
-};
-export const setQuery = (newForm: FormObject) => {
-  debounce(() => {
-    const query = objectToQuery(newForm);
-    window.history.pushState(newForm, '', '?' + query);
-  }, 500);
 };
 
 export const useHistoryDoc = (
   schema: ZodSchema,
   getDefaultForm: () => FormObject
-): [FormObject, (a: FormObject) => void] => {
-  const [form, setForm] = useState<FormObject>(() => initialise<FormObject>(schema, getDefaultForm()));
-  const doSetForm = (form: FormObject) => {
-    setForm(form);
-    setQuery(form);
-  };
+): [FormObject, (form: FormObject) => void] => {
+  const [initial] = useState(() => initialise(schema, getDefaultForm));
+  const [form, setForm] = useState<FormObject>(initial.form);
+
   useEffect(() => {
-    const historyChanged = (event: PopStateEvent) => {
-      try {
-        doSetForm(schema.parse(event.state));
-      } catch (e) {
-        console.log('error restoring from history');
-      }
-    };
-    window.addEventListener('popstate', historyChanged);
-    return () => {
-      window.removeEventListener('popstate', historyChanged);
-    };
-  });
-  return [form, doSetForm];
+    if (initial.consumedShareQuery) stripQueryFromUrl();
+  }, [initial.consumedShareQuery]);
+
+  return [form, setForm];
 };

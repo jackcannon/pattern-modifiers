@@ -69,16 +69,12 @@ export const BUILD_VOLUME_PRESET_GROUPS_SORTED: BuildVolumePresetGroup[] = BUILD
 
 export const BUILD_VOLUME_PRESETS: BuildVolumePreset[] = BUILD_VOLUME_PRESET_GROUPS_SORTED.flatMap((group) => group.presets);
 
-const matches = (a: number, b: number) => Math.abs(a - b) < 0.001;
-
-export const findMatchingBuildVolumePresetId = (width: number, depth: number, height: number): string => {
-  const match = BUILD_VOLUME_PRESETS.find(
-    (preset) => matches(width, preset.width) && matches(depth, preset.depth) && matches(height, preset.height)
-  );
-  return match?.id ?? 'custom';
-};
-
 export const getBuildVolumePreset = (id: string) => BUILD_VOLUME_PRESETS.find((preset) => preset.id === id);
 
 /** Default build volume: Bambu Lab H2C (330 × 320 × 325 mm) */
 export const DEFAULT_BUILD_VOLUME = getBuildVolumePreset('bambu-h2c')!;
+
+export const DEFAULT_BUILD_VOLUME_PRESET_ID = DEFAULT_BUILD_VOLUME.id;
+
+export const getBuildPlateDimensions = (presetId: string): BuildVolumePreset =>
+  getBuildVolumePreset(presetId) ?? DEFAULT_BUILD_VOLUME;

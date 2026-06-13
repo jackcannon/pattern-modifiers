@@ -2,6 +2,7 @@ import { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 
 import { FormObject } from '../form/schema';
+import { getBuildPlateDimensions } from '../form/buildVolumePresets';
 import { SIDEBAR_PERCENT } from '../constants';
 
 import { CameraAngleResetButton } from './CameraAngleResetButton';
@@ -21,14 +22,16 @@ interface Props {
 export const SceneRender = ({ style, form }: Props) => {
   const [width, height] = useWindowSize();
   const sectionRatio = (100 - SIDEBAR_PERCENT) / 100;
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget>(() => defaultCameraTarget(form.height));
+  const plate = getBuildPlateDimensions(form.buildVolumePreset);
+  const viewHeight = Math.max(form.height, plate.height);
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget>(() => defaultCameraTarget(viewHeight));
   const [cameraAngleReset, setCameraAngleReset] = useState(0);
 
   return (
     <section className="render" style={style}>
       <CameraFocusButtons
         demoEnabled={form.demoEnabled}
-        height={form.height}
+        height={viewHeight}
         demoSize={form.demoSize}
         onFocus={setCameraTarget}
       />

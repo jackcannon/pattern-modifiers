@@ -2,7 +2,16 @@ import { Grid2, Paper, Typography } from '@mui/material';
 
 import { FormInput } from './FormInputs';
 import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
-import { demoModeSectionNote, formConfig, formGroups, FormObject, FormPropName, FormSchemaType } from './schema';
+import {
+  demoModeSectionNote,
+  formConfig,
+  formGroups,
+  FormGroupDef,
+  FormObject,
+  FormPropName,
+  FormSchemaType,
+  isFieldActive
+} from './schema';
 
 import './form.css';
 
@@ -12,14 +21,19 @@ interface Props {
   onChange: (v: FormObject) => void;
 }
 
+const normalizeGroup = (group: FormGroupDef): { fields: FormPropName[]; title?: string; patternId?: string } => {
+  if (typeof group === 'string') return { fields: [group] };
+  if (Array.isArray(group)) return { fields: group };
+  return group;
+};
+
 export const Form = ({ schema, object, onChange }: Props) => {
   const getIndividualFormItem = (key: FormPropName) => {
     const config = formConfig[key];
     const value = object[key as unknown as FormPropName];
     const onChangeValue = <T extends unknown>(v: T) => onChange({ ...object, [key]: v });
 
-    const isShow = config.show ? config.show(object) : true;
-    if (!isShow) return null;
+    if (!isFieldActive(config, object)) return null;
 
     const max = typeof config.max === 'function' ? config.max(object) : config.max;
 
@@ -45,19 +59,33 @@ export const Form = ({ schema, object, onChange }: Props) => {
       />
     );
   };
+
   return (
     <Grid2 container spacing={1} direction="row" wrap="wrap" justifyContent="flex-start" sx={{ width: 'calc(100% - 1em)' }}>
       {formGroups.map((group, index) => {
-        if (typeof group === 'string') return getIndividualFormItem(group as FormPropName);
+        const { fields, title, patternId } = normalizeGroup(group);
+
+        if (patternId && object.type !== patternId) return null;
+
+        if (fields.length === 1 && typeof group === 'string') {
+          return getIndividualFormItem(fields[0]);
+        }
 
         return (
           <Grid2 key={`group-${index + 1}`} container sx={{ width: '100%' }}>
             <Paper sx={{ width: '100%', padding: '0.6em 0em 0.1em', display: 'flex', justifyContent: 'center' }}>
               <Grid2 container spacing={1} direction="row" wrap="wrap" justifyContent="flex-start" sx={{ width: 'calc(100% - 1em)' }}>
-                {group.includes('width') && group.includes('depth') && group.includes('height') && (
+                {title && (
+                  <Grid2 sx={{ width: '100%', padding: '0 0.25em 0.25em' }}>
+                    <Typography variant="subtitle2" component="h2">
+                      {title}
+                    </Typography>
+                  </Grid2>
+                )}
+                {fields.includes('buildVolumePreset') && (
                   <BuildVolumePresetSelect object={object} onChange={onChange} />
                 )}
-                {group.map((key) => getIndividualFormItem(key))}
+                {fields.filter((key) => key !== 'buildVolumePreset').map((key) => getIndividualFormItem(key))}
               </Grid2>
             </Paper>
           </Grid2>

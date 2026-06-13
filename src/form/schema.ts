@@ -1,22 +1,21 @@
 import z from 'zod';
 import { MathsTools } from 'swiss-ak';
 
-import { DEFAULT_BUILD_VOLUME } from './buildVolumePresets';
+import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const FormSchema = z.object({
-  type: z.enum(['perlin']),
+export const PatternTypeSchema = z.enum(['perlin']);
+export type PatternType = z.infer<typeof PatternTypeSchema>;
+
+const coreFormFields = {
+  buildVolumePreset: z.string(),
   width: z.number().min(0.01),
   height: z.number().min(0.01),
   depth: z.number().min(0.01),
-  overflow: z.number().min(0),
-  seed: z.number(),
-  scale: z.number().min(1),
   threshold: z.number().min(1).max(99),
-  octaves: z.number().int().min(1).max(6),
-  persistence: z.number().min(0.1).max(1),
+  thresholdInverse: z.boolean(),
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
   demoEnabled: z.boolean(),
@@ -24,7 +23,22 @@ export const FormSchema = z.object({
   demoSize: z.number().min(5).max(200),
   demoResolution: z.number().int().min(8).max(128),
   fileName: z.string()
-});
+};
+
+const perlinPatternFields = {
+  seed: z.number(),
+  scale: z.number().min(1),
+  octaves: z.number().int().min(1).max(6),
+  persistence: z.number().min(0.1).max(1)
+};
+
+export const FormSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('perlin'),
+    ...coreFormFields,
+    ...perlinPatternFields
+  })
+]);
 
 export type FormSchemaType = typeof FormSchema;
 export type FormObject = z.infer<FormSchemaType>;
@@ -47,13 +61,20 @@ export interface FormInputConfig {
   trueLabel?: string;
   falseLabel?: string;
   options?: { value: any; label: string }[];
+  /** When set, field belongs to this pattern type and is omitted from share URLs for other patterns */
+  patternId?: PatternType;
   show?: (formObj: FormObject) => boolean;
   randomize?: () => any;
   placeholder?: (formObj: FormObject) => string;
 }
 
+export const isFieldActive = (config: FormInputConfig, form: FormObject): boolean => {
+  if (config.patternId && form.type !== config.patternId) return false;
+  return config.show ? config.show(form) : true;
+};
+
 export const getDefaultFileName = (form: FormObject) =>
-  `pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}-scale${form.scale}-th${form.threshold}`;
+  `pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}-sc${form.scale}-th${form.threshold}${form.thresholdInverse ? 'i' : ''}`;
 
 export const demoModeSectionNote =
   'Demo mode only gives a very rough demonstration of what the modifier might look like.';
@@ -67,12 +88,20 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     defaultValue: 'perlin',
     options: [{ value: 'perlin', label: 'Perlin Noise' }]
   },
+  buildVolumePreset: {
+    paramName: 'bv',
+    type: 'select',
+    displayName: 'Printer',
+    description: 'Build plate size shown in the 3D preview',
+    defaultValue: DEFAULT_BUILD_VOLUME_PRESET_ID,
+    options: []
+  },
   width: {
     paramName: 'w',
     type: 'slider',
-    displayName: 'Build Volume Width',
-    description: 'Width (X axis) of the printer build volume',
-    defaultValue: DEFAULT_BUILD_VOLUME.width,
+    displayName: 'Model Width',
+    description: 'Width (X axis) of the generated pattern modifier',
+    defaultValue: 200,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 0.25,
@@ -81,9 +110,9 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   depth: {
     paramName: 'd',
     type: 'slider',
-    displayName: 'Build Volume Depth',
-    description: 'Depth (Y axis) of the printer build volume',
-    defaultValue: DEFAULT_BUILD_VOLUME.depth,
+    displayName: 'Model Depth',
+    description: 'Depth (Y axis) of the generated pattern modifier',
+    defaultValue: 200,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 0.25,
@@ -92,38 +121,45 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   height: {
     paramName: 'h',
     type: 'slider',
-    displayName: 'Build Volume Height',
-    description: 'Height (Z axis) of the printer build volume',
-    defaultValue: DEFAULT_BUILD_VOLUME.height,
+    displayName: 'Model Height',
+    description: 'Height (Z axis) of the generated pattern modifier',
+    defaultValue: 200,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 0.25,
     max: (form) => MathsTools.ceilTo(100, Math.max(form.width, form.height, form.depth))
   },
-  overflow: {
-    paramName: 'o',
+  threshold: {
+    paramName: 'th',
     type: 'slider',
-    displayName: 'Overflow',
-    description: 'How far the pattern extends beyond the model bounds',
-    defaultValue: 1,
-    unit: 'mm',
-    sliderStep: 0.1,
-    inputStep: 0.05,
-    min: 0,
-    max: 10
+    displayName: 'Threshold',
+    description: 'Cutoff percentile for the pattern — with Inverse off, the lowest values up to this point are solid; with Inverse on, the highest values from this point upward are solid',
+    defaultValue: 50,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 1,
+    max: 99
+  },
+  thresholdInverse: {
+    paramName: 'inv',
+    type: 'boolean',
+    displayName: 'Inverse',
+    description: 'Flip which side of the threshold is solid — off keeps the lowest values (0% to threshold), on keeps the highest (threshold to 100%)',
+    defaultValue: false
   },
   seed: {
-    paramName: 's',
+    paramName: 'per_s',
     type: 'number',
     displayName: 'Seed',
     description: 'Random seed for the noise pattern - same seed always produces the same pattern',
     defaultValue: 0,
     inputStep: 1,
-    show: (form) => form.type === 'perlin',
+    patternId: 'perlin',
     randomize: () => Math.floor(Math.random() * 1000000)
   },
   scale: {
-    paramName: 'sc',
+    paramName: 'per_sc',
     type: 'slider',
     displayName: 'Pattern Scale',
     description: 'Size of the noise features - larger values produce bigger, smoother blobs',
@@ -133,23 +169,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.5,
     min: 1,
     max: 300,
-    show: (form) => form.type === 'perlin'
-  },
-  threshold: {
-    paramName: 'th',
-    type: 'slider',
-    displayName: 'Threshold',
-    description: 'How full the pattern is - 1% is mostly empty with a few floating islands, 99% is mostly solid with a few holes',
-    defaultValue: 50,
-    unit: '%',
-    sliderStep: 1,
-    inputStep: 1,
-    min: 1,
-    max: 99,
-    show: (form) => form.type === 'perlin'
+    patternId: 'perlin'
   },
   octaves: {
-    paramName: 'oc',
+    paramName: 'per_oc',
     type: 'slider',
     displayName: 'Octaves',
     description: 'Number of noise layers - more octaves add finer detail on top of the base pattern',
@@ -158,10 +181,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 6,
-    show: (form) => form.type === 'perlin'
+    patternId: 'perlin'
   },
   persistence: {
-    paramName: 'p',
+    paramName: 'per_p',
     type: 'slider',
     displayName: 'Persistence',
     description: 'How strongly each extra octave contributes - higher values make fine detail more prominent',
@@ -170,7 +193,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 0.1,
     max: 1,
-    show: (form) => form.type === 'perlin' && form.octaves > 1
+    patternId: 'perlin',
+    show: (form) => form.octaves > 1
   },
   previewResolution: {
     paramName: 'pr',
@@ -256,10 +280,25 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   }
 };
 
-export const formGroups: (FormPropName[] | FormPropName)[] = [
+export type FormGroupDef =
+  | FormPropName
+  | FormPropName[]
+  | {
+      patternId?: PatternType;
+      title?: string;
+      fields: FormPropName[];
+    };
+
+export const formGroups: FormGroupDef[] = [
   ['type'],
-  ['width', 'depth', 'height', 'overflow'],
-  ['scale', 'threshold', 'seed', 'octaves', 'persistence'],
+  ['buildVolumePreset'],
+  ['width', 'depth', 'height'],
+  ['threshold', 'thresholdInverse'],
+  {
+    patternId: 'perlin',
+    title: 'Perlin Noise',
+    fields: ['scale', 'seed', 'octaves', 'persistence']
+  },
   ['previewResolution', 'exportResolution'],
   ['demoEnabled', 'demoModel', 'demoSize', 'demoResolution'],
   ['fileName']

@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, Uint32BufferAttribute } from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-import { ClipField, PatternField } from '../generate/patternField';
+import { ClipRuntime, PatternField } from '../generate/patternField';
 
 export interface DemoClipResult {
   inside: BufferGeometry | null;
@@ -38,11 +38,46 @@ const copyIndices = (indexAttr: BufferAttribute) => {
   return indices;
 };
 
-interface Point3 {
-  x: number;
-  y: number;
-  z: number;
-}
+const sampleAt = (clip: ClipRuntime, x: number, y: number, z: number) => {
+  const fx = (x - clip.x0) * clip.invSx;
+  const fy = (y - clip.y0) * clip.invSy;
+  const fz = (z - clip.z0) * clip.invSz;
+
+  const i0 = fx < 0 ? 0 : fx > clip.maxI ? clip.maxI : fx | 0;
+  const j0 = fy < 0 ? 0 : fy > clip.maxJ ? clip.maxJ : fy | 0;
+  const k0 = fz < 0 ? 0 : fz > clip.maxK ? clip.maxK : fz | 0;
+
+  const tx = fx - i0;
+  const ty = fy - j0;
+  const tz = fz - k0;
+
+  const base = i0 + j0 * clip.strideY + k0 * clip.strideZ;
+  const samples = clip.samples;
+  const c000 = samples[base];
+  const c100 = samples[base + 1];
+  const c010 = samples[base + clip.strideY];
+  const c110 = samples[base + 1 + clip.strideY];
+  const c001 = samples[base + clip.strideZ];
+  const c101 = samples[base + 1 + clip.strideZ];
+  const c011 = samples[base + clip.strideY + clip.strideZ];
+  const c111 = samples[base + 1 + clip.strideY + clip.strideZ];
+
+  const c00 = c000 + (c100 - c000) * tx;
+  const c10 = c010 + (c110 - c010) * tx;
+  const c01 = c001 + (c101 - c001) * tx;
+  const c11 = c011 + (c111 - c011) * tx;
+  const c0 = c00 + (c10 - c00) * ty;
+  const c1 = c01 + (c11 - c01) * ty;
+  return c0 + (c1 - c0) * tz;
+};
+
+const isSolidAt = (clip: ClipRuntime, x: number, y: number, z: number) => {
+  if (x < clip.minX || x > clip.maxX || y < clip.minY || y > clip.maxY || z < clip.minZ || z > clip.maxZ) {
+    return false;
+  }
+  const value = sampleAt(clip, x, y, z);
+  return clip.solidHigh ? value >= clip.iso : value <= clip.iso;
+};
 
 const edgeIntersection = (
   ax: number,
@@ -54,24 +89,16 @@ const edgeIntersection = (
   fa: number,
   fb: number,
   iso: number,
-  out: Point3
+  out: Float32Array,
+  offset: number
 ) => {
   const denom = fb - fa;
   const t = Math.abs(denom) < 1e-12 ? 0.5 : (iso - fa) / denom;
   const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
-  out.x = ax + (bx - ax) * clamped;
-  out.y = ay + (by - ay) * clamped;
-  out.z = az + (bz - az) * clamped;
+  out[offset] = ax + (bx - ax) * clamped;
+  out[offset + 1] = ay + (by - ay) * clamped;
+  out[offset + 2] = az + (bz - az) * clamped;
 };
-
-const isSolidAt = (clip: ClipField, x: number, y: number, z: number) =>
-  x >= clip.minX &&
-  x <= clip.maxX &&
-  y >= clip.minY &&
-  y <= clip.maxY &&
-  z >= clip.minZ &&
-  z <= clip.maxZ &&
-  clip.sample(x, y, z) >= clip.iso;
 
 const assignGeometryBuffers = (
   existing: BufferGeometry | null,
@@ -81,17 +108,19 @@ const assignGeometryBuffers = (
 ): BufferGeometry | null => {
   if (vertexCount === 0) return null;
 
-  const positionArray = positions.subarray(0, vertexCount * 3);
-  const normalArray = normals.subarray(0, vertexCount * 3);
+  const byteLength = vertexCount * 3;
+  const positionArray = positions.subarray(0, byteLength);
+  const normalArray = normals.subarray(0, byteLength);
 
   if (existing) {
     const positionAttr = existing.getAttribute('position') as BufferAttribute;
-    const normalAttr = existing.getAttribute('normal') as BufferAttribute;
-    if (positionAttr.count === vertexCount) {
+    const normalAttr = existing.getAttribute('normal') as BufferAttribute | undefined;
+    if (positionAttr.count === vertexCount && normalAttr?.count === vertexCount) {
       (positionAttr.array as Float32Array).set(positionArray);
       (normalAttr.array as Float32Array).set(normalArray);
       positionAttr.needsUpdate = true;
       normalAttr.needsUpdate = true;
+      existing.setDrawRange(0, vertexCount);
       return existing;
     }
     existing.dispose();
@@ -104,14 +133,17 @@ const assignGeometryBuffers = (
 };
 
 class TriangleWriter {
-  private positions: Float32Array;
-  private normals: Float32Array;
+  positions!: Float32Array;
+  normals!: Float32Array;
   private vertexCount = 0;
 
-  constructor(triangleEstimate: number) {
-    const capacity = triangleEstimate * 3;
-    this.positions = new Float32Array(capacity * 3);
-    this.normals = new Float32Array(capacity * 3);
+  reset(triangleEstimate: number) {
+    const capacity = Math.max(triangleEstimate, 1) * 9;
+    if (!this.positions || this.positions.length !== capacity) {
+      this.positions = new Float32Array(capacity);
+      this.normals = new Float32Array(capacity);
+    }
+    this.vertexCount = 0;
   }
 
   push(
@@ -125,8 +157,14 @@ class TriangleWriter {
     cy: number,
     cz: number
   ) {
-    if (this.vertexCount + 3 > this.positions.length / 3) {
-      this.grow();
+    const offset = this.vertexCount;
+    if (offset + 9 > this.positions.length) {
+      const expanded = new Float32Array(this.positions.length * 2);
+      expanded.set(this.positions);
+      this.positions = expanded;
+      const expandedNormals = new Float32Array(this.normals.length * 2);
+      expandedNormals.set(this.normals);
+      this.normals = expandedNormals;
     }
 
     const e1x = bx - ax;
@@ -143,7 +181,6 @@ class TriangleWriter {
     ny /= len;
     nz /= len;
 
-    const offset = this.vertexCount * 3;
     this.positions[offset] = ax;
     this.positions[offset + 1] = ay;
     this.positions[offset + 2] = az;
@@ -164,36 +201,26 @@ class TriangleWriter {
     this.normals[offset + 7] = ny;
     this.normals[offset + 8] = nz;
 
-    this.vertexCount += 3;
+    this.vertexCount += 9;
   }
 
   toGeometry(existing: BufferGeometry | null) {
-    return assignGeometryBuffers(existing, this.positions, this.normals, this.vertexCount);
-  }
-
-  private grow() {
-    const nextCapacity = this.positions.length * 2;
-    const nextPositions = new Float32Array(nextCapacity);
-    const nextNormals = new Float32Array(nextCapacity);
-    nextPositions.set(this.positions);
-    nextNormals.set(this.normals);
-    this.positions = nextPositions;
-    this.normals = nextNormals;
+    return assignGeometryBuffers(existing, this.positions, this.normals, this.vertexCount / 3);
   }
 }
 
 class EdgeCache {
-  private points = new Map<number, Point3>();
+  points: Float32Array = new Float32Array(0);
+  private offsets = new Map<number, number>();
 
-  getOrCreate(
-    i: number,
-    j: number,
-    positions: Float32Array,
-    clip: ClipField
-  ): Point3 {
+  clear() {
+    this.offsets.clear();
+  }
+
+  getOrCreate(i: number, j: number, positions: Float32Array, clip: ClipRuntime): number {
     const key = edgeKey(i, j);
-    const cached = this.points.get(key);
-    if (cached) return cached;
+    const cached = this.offsets.get(key);
+    if (cached !== undefined) return cached;
 
     const ii = i * 3;
     const ji = j * 3;
@@ -204,7 +231,13 @@ class EdgeCache {
     const by = positions[ji + 1];
     const bz = positions[ji + 2];
 
-    const point: Point3 = { x: 0, y: 0, z: 0 };
+    const offset = this.offsets.size * 3;
+    if (offset + 3 > this.points.length) {
+      const expanded = new Float32Array(Math.max(this.points.length * 2, offset + 96));
+      expanded.set(this.points);
+      this.points = expanded;
+    }
+
     edgeIntersection(
       ax,
       ay,
@@ -212,18 +245,25 @@ class EdgeCache {
       bx,
       by,
       bz,
-      clip.sample(ax, ay, az),
-      clip.sample(bx, by, bz),
+      sampleAt(clip, ax, ay, az),
+      sampleAt(clip, bx, by, bz),
       clip.iso,
-      point
+      this.points,
+      offset
     );
-    this.points.set(key, point);
-    return point;
+    this.offsets.set(key, offset);
+    return offset;
   }
 }
 
+const clipBuffers = {
+  inside: new TriangleWriter(),
+  outside: new TriangleWriter(),
+  edgeCache: new EdgeCache()
+};
+
 const clipTriangle = (
-  clip: ClipField,
+  clip: ClipRuntime,
   ia: number,
   ib: number,
   ic: number,
@@ -236,23 +276,33 @@ const clipTriangle = (
   const bi = ib * 3;
   const ci = ic * 3;
 
-  let ax = positions[ai];
-  let ay = positions[ai + 1];
-  let az = positions[ai + 2];
-  let bx = positions[bi];
-  let by = positions[bi + 1];
-  let bz = positions[bi + 2];
-  let cx = positions[ci];
-  let cy = positions[ci + 1];
-  let cz = positions[ci + 2];
+  const ax = positions[ai];
+  const ay = positions[ai + 1];
+  const az = positions[ai + 2];
+  const bx = positions[bi];
+  const by = positions[bi + 1];
+  const bz = positions[bi + 2];
+  const cx = positions[ci];
+  const cy = positions[ci + 1];
+  const cz = positions[ci + 2];
+
   let i0 = ia;
   let i1 = ib;
   let i2 = ic;
+  let tax = ax;
+  let tay = ay;
+  let taz = az;
+  let tbx = bx;
+  let tby = by;
+  let tbz = bz;
+  let tcx = cx;
+  let tcy = cy;
+  let tcz = cz;
 
   const sa = isSolidAt(clip, ax, ay, az);
   const sb = isSolidAt(clip, bx, by, bz);
   const sc = isSolidAt(clip, cx, cy, cz);
-  const solidCount = Number(sa) + Number(sb) + Number(sc);
+  const solidCount = (sa ? 1 : 0) + (sb ? 1 : 0) + (sc ? 1 : 0);
 
   if (solidCount === 0) {
     outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
@@ -266,72 +316,95 @@ const clipTriangle = (
 
   if (solidCount === 1) {
     if (sb && !sa && !sc) {
-      ax = positions[bi];
-      ay = positions[bi + 1];
-      az = positions[bi + 2];
-      bx = positions[ci];
-      by = positions[ci + 1];
-      bz = positions[ci + 2];
-      cx = positions[ai];
-      cy = positions[ai + 1];
-      cz = positions[ai + 2];
       i0 = ib;
       i1 = ic;
       i2 = ia;
+      tax = bx;
+      tay = by;
+      taz = bz;
+      tbx = cx;
+      tby = cy;
+      tbz = cz;
+      tcx = ax;
+      tcy = ay;
+      tcz = az;
     } else if (!sa && !sb && sc) {
-      ax = positions[ci];
-      ay = positions[ci + 1];
-      az = positions[ci + 2];
-      bx = positions[ai];
-      by = positions[ai + 1];
-      bz = positions[ai + 2];
-      cx = positions[bi];
-      cy = positions[bi + 1];
-      cz = positions[bi + 2];
       i0 = ic;
       i1 = ia;
       i2 = ib;
+      tax = cx;
+      tay = cy;
+      taz = cz;
+      tbx = ax;
+      tby = ay;
+      tbz = az;
+      tcx = bx;
+      tcy = by;
+      tcz = bz;
+    } else {
+      tax = ax;
+      tay = ay;
+      taz = az;
+      tbx = bx;
+      tby = by;
+      tbz = bz;
+      tcx = cx;
+      tcy = cy;
+      tcz = cz;
     }
 
     const p01 = edgeCache.getOrCreate(i0, i1, positions, clip);
     const p02 = edgeCache.getOrCreate(i0, i2, positions, clip);
-    inside.push(ax, ay, az, p01.x, p01.y, p01.z, p02.x, p02.y, p02.z);
-    outside.push(p01.x, p01.y, p01.z, bx, by, bz, cx, cy, cz);
-    outside.push(p01.x, p01.y, p01.z, cx, cy, cz, p02.x, p02.y, p02.z);
+    const edgePoints = edgeCache.points;
+    inside.push(tax, tay, taz, edgePoints[p01], edgePoints[p01 + 1], edgePoints[p01 + 2], edgePoints[p02], edgePoints[p02 + 1], edgePoints[p02 + 2]);
+    outside.push(edgePoints[p01], edgePoints[p01 + 1], edgePoints[p01 + 2], tbx, tby, tbz, tcx, tcy, tcz);
+    outside.push(edgePoints[p01], edgePoints[p01 + 1], edgePoints[p01 + 2], tcx, tcy, tcz, edgePoints[p02], edgePoints[p02 + 1], edgePoints[p02 + 2]);
     return;
   }
 
   if (!sc && sa && sb) {
-    // keep orientation
+    tax = ax;
+    tay = ay;
+    taz = az;
+    tbx = bx;
+    tby = by;
+    tbz = bz;
+    tcx = cx;
+    tcy = cy;
+    tcz = cz;
   } else if (!sb && sa && sc) {
-    bx = positions[ci];
-    by = positions[ci + 1];
-    bz = positions[ci + 2];
-    cx = positions[bi];
-    cy = positions[bi + 1];
-    cz = positions[bi + 2];
     i1 = ic;
     i2 = ib;
+    tax = ax;
+    tay = ay;
+    taz = az;
+    tbx = cx;
+    tby = cy;
+    tbz = cz;
+    tcx = bx;
+    tcy = by;
+    tcz = bz;
   } else {
-    ax = positions[bi];
-    ay = positions[bi + 1];
-    az = positions[bi + 2];
-    bx = positions[ci];
-    by = positions[ci + 1];
-    bz = positions[ci + 2];
-    cx = positions[ai];
-    cy = positions[ai + 1];
-    cz = positions[ai + 2];
     i0 = ib;
     i1 = ic;
     i2 = ia;
+    tax = bx;
+    tay = by;
+    taz = bz;
+    tbx = cx;
+    tby = cy;
+    tbz = cz;
+    tcx = ax;
+    tcy = ay;
+    tcz = az;
   }
 
   const p0c = edgeCache.getOrCreate(i0, i2, positions, clip);
   const p1c = edgeCache.getOrCreate(i1, i2, positions, clip);
-  outside.push(cx, cy, cz, p0c.x, p0c.y, p0c.z, p1c.x, p1c.y, p1c.z);
-  inside.push(ax, ay, az, bx, by, bz, p1c.x, p1c.y, p1c.z);
-  inside.push(ax, ay, az, p1c.x, p1c.y, p1c.z, p0c.x, p0c.y, p0c.z);
+  const edgePoints = edgeCache.points;
+  outside.push(tcx, tcy, tcz, edgePoints[p0c], edgePoints[p0c + 1], edgePoints[p0c + 2], edgePoints[p1c], edgePoints[p1c + 1], edgePoints[p1c + 2]);
+  inside.push(tax, tay, taz, tbx, tby, tbz, edgePoints[p1c], edgePoints[p1c + 1], edgePoints[p1c + 2]);
+  inside.push(tax, tay, taz, edgePoints[p1c], edgePoints[p1c + 1], edgePoints[p1c + 2], edgePoints[p0c], edgePoints[p0c + 1], edgePoints[p0c + 2]);
 };
 
 /**
@@ -354,19 +427,6 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
 
   const maxEdgeLengthSq = maxEdgeLength * maxEdgeLength;
 
-  const edgeLengthSq = (ia: number, ib: number) => {
-    const ax = positions[ia * 3];
-    const ay = positions[ia * 3 + 1];
-    const az = positions[ia * 3 + 2];
-    const bx = positions[ib * 3];
-    const by = positions[ib * 3 + 1];
-    const bz = positions[ib * 3 + 2];
-    const dx = bx - ax;
-    const dy = by - ay;
-    const dz = bz - az;
-    return dx * dx + dy * dy + dz * dz;
-  };
-
   for (let pass = 0; pass < 12; pass++) {
     const edgesToSplit = new Set<number>();
 
@@ -374,9 +434,27 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
       const ia = indices[t];
       const ib = indices[t + 1];
       const ic = indices[t + 2];
-      if (edgeLengthSq(ia, ib) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ia, ib));
-      if (edgeLengthSq(ib, ic) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ib, ic));
-      if (edgeLengthSq(ic, ia) > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ic, ia));
+      const ax = positions[ia * 3];
+      const ay = positions[ia * 3 + 1];
+      const az = positions[ia * 3 + 2];
+      const bx = positions[ib * 3];
+      const by = positions[ib * 3 + 1];
+      const bz = positions[ib * 3 + 2];
+      const cx = positions[ic * 3];
+      const cy = positions[ic * 3 + 1];
+      const cz = positions[ic * 3 + 2];
+      const dx = bx - ax;
+      const dy = by - ay;
+      const dz = bz - az;
+      if (dx * dx + dy * dy + dz * dz > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ia, ib));
+      const dx2 = cx - bx;
+      const dy2 = cy - by;
+      const dz2 = cz - bz;
+      if (dx2 * dx2 + dy2 * dy2 + dz2 * dz2 > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ib, ic));
+      const dx3 = ax - cx;
+      const dy3 = ay - cy;
+      const dz3 = az - cz;
+      if (dx3 * dx3 + dy3 * dy3 + dz3 * dz3 > maxEdgeLengthSq) edgesToSplit.add(edgeKey(ic, ia));
     }
 
     if (edgesToSplit.size === 0) break;
@@ -403,8 +481,7 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
 
     const getMidpoint = (a: number, b: number) => edgeMid.get(edgeKey(a, b))!;
 
-    const nextIndexCount = indexCount * 4;
-    const nextIndices = new Uint32Array(nextIndexCount);
+    const nextIndices = new Uint32Array(indexCount * 4);
     let write = 0;
 
     const pushTri = (a: number, b: number, c: number) => {
@@ -492,7 +569,7 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
 
   const result = new BufferGeometry();
   result.setAttribute('position', new BufferAttribute(positions, 3));
-  result.setIndex(new Uint32BufferAttribute(new Uint32Array(indices), 1));
+  result.setIndex(new Uint32BufferAttribute(indices.slice(), 1));
   return result;
 };
 
@@ -504,9 +581,13 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
  * @returns {BufferGeometry} prepared mesh (caller owns disposal)
  */
 export const getPreparedDemoMesh = (demoGeometry: BufferGeometry, maxCellSize: number): BufferGeometry => {
-  const input = demoGeometry.getIndex() ? demoGeometry.clone() : mergeVertices(demoGeometry.clone());
-  const subdivided = subdivideLongEdges(input, maxCellSize);
-  input.dispose();
+  if (demoGeometry.getIndex()) {
+    return subdivideLongEdges(demoGeometry, maxCellSize);
+  }
+
+  const merged = mergeVertices(demoGeometry.clone());
+  const subdivided = subdivideLongEdges(merged, maxCellSize);
+  merged.dispose();
   return subdivided;
 };
 
@@ -531,25 +612,37 @@ export const clipPreparedDemoMesh = (
     return result;
   }
 
-  const clip = field.clip;
+  const clip = field.clipRuntime;
   const positions = (preparedMesh.getAttribute('position') as BufferAttribute).array as Float32Array;
   const triangleCount = index.count / 3;
-  const inside = new TriangleWriter(triangleCount);
-  const outside = new TriangleWriter(triangleCount);
-  const edgeCache = new EdgeCache();
-  const indices = index.array as ArrayLike<number>;
+  const inside = clipBuffers.inside;
+  const outside = clipBuffers.outside;
+  const edgeCache = clipBuffers.edgeCache;
 
-  for (let t = 0; t < index.count; t += 3) {
-    clipTriangle(
-      clip,
-      indices[t] as number,
-      indices[t + 1] as number,
-      indices[t + 2] as number,
-      positions,
-      edgeCache,
-      inside,
-      outside
-    );
+  inside.reset(triangleCount);
+  outside.reset(triangleCount);
+  edgeCache.clear();
+
+  const indices = index.array as Uint32Array | Uint16Array;
+  const indexLength = index.count;
+
+  if (indices instanceof Uint32Array) {
+    for (let t = 0; t < indexLength; t += 3) {
+      clipTriangle(
+        clip,
+        indices[t],
+        indices[t + 1],
+        indices[t + 2],
+        positions,
+        edgeCache,
+        inside,
+        outside
+      );
+    }
+  } else {
+    for (let t = 0; t < indexLength; t += 3) {
+      clipTriangle(clip, indices[t], indices[t + 1], indices[t + 2], positions, edgeCache, inside, outside);
+    }
   }
 
   return {
@@ -569,6 +662,6 @@ export const clipPreparedDemoMesh = (
 export const clipDemoWithField = (demoGeometry: BufferGeometry, field: PatternField): DemoClipResult => {
   const prepared = getPreparedDemoMesh(demoGeometry, field.maxCellSize);
   const result = clipPreparedDemoMesh(prepared, field);
-  prepared.dispose();
+  if (prepared !== demoGeometry) prepared.dispose();
   return result;
 };

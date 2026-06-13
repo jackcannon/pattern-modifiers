@@ -1,9 +1,8 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLoader } from '@react-three/fiber';
-import { DoubleSide, BufferGeometry } from 'three';
+import { BufferGeometry, DoubleSide, MeshStandardMaterial } from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 import { PatternField } from '../generate/patternField';
 import { FormObject } from '../form/schema';
@@ -12,6 +11,7 @@ import { DEMO_OBJ_PATHS, DEMO_STL_PATHS, isObjDemoModel, isStlDemoModel, ObjDemo
 import { extractMeshGeometry } from './demoModels';
 import { clipPreparedDemoMesh, DemoClipResult, DemoClipReuse } from './demoClip';
 import { getCachedPreparedDemoMesh } from './demoMeshCache';
+import { getMergedStlGeometry } from './demoStlCache';
 
 interface Props {
   form: FormObject;
@@ -21,19 +21,30 @@ interface Props {
 const INSIDE_COLOR = '#FFDC00';
 const OUTSIDE_COLOR = '#5B8DEF';
 
-const ClippedMesh = ({ geometry, color }: { geometry: BufferGeometry; color: string }) => (
-  <mesh geometry={geometry} renderOrder={2}>
-    <meshStandardMaterial
-      color={color}
-      flatShading
-      metalness={0.15}
-      roughness={0.55}
-      side={DoubleSide}
-      polygonOffset
-      polygonOffsetFactor={color === INSIDE_COLOR ? -1 : 1}
-      polygonOffsetUnits={1}
-    />
-  </mesh>
+const insideMaterial = new MeshStandardMaterial({
+  color: INSIDE_COLOR,
+  flatShading: true,
+  metalness: 0.15,
+  roughness: 0.55,
+  side: DoubleSide,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits: 1
+});
+
+const outsideMaterial = new MeshStandardMaterial({
+  color: OUTSIDE_COLOR,
+  flatShading: true,
+  metalness: 0.15,
+  roughness: 0.55,
+  side: DoubleSide,
+  polygonOffset: true,
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 1
+});
+
+const ClippedMesh = ({ geometry, material }: { geometry: BufferGeometry; material: MeshStandardMaterial }) => (
+  <mesh geometry={geometry} renderOrder={2} material={material} />
 );
 
 const DemoModelInner = ({
@@ -41,39 +52,25 @@ const DemoModelInner = ({
   patternField,
   externalSource
 }: Props & { externalSource?: BufferGeometry }) => {
-  const deferredField = useDeferredValue(patternField);
   const [clipResult, setClipResult] = useState<DemoClipResult | null>(null);
   const reuseRef = useRef<DemoClipReuse>({ inside: null, outside: null });
 
   const preparedMesh = useMemo(
     () =>
-      getCachedPreparedDemoMesh(form.demoModel, form.demoSize, deferredField.maxCellSize, externalSource),
-    [form.demoModel, form.demoSize, deferredField.maxCellSize, externalSource]
+      getCachedPreparedDemoMesh(form.demoModel, form.demoSize, patternField.maxCellSize, externalSource),
+    [form.demoModel, form.demoSize, patternField.maxCellSize, externalSource]
   );
 
   useEffect(() => {
-    let cancelled = false;
-    const idleId = requestIdleCallback(
-      () => {
-        if (cancelled) return;
-
-        try {
-          const clipped = clipPreparedDemoMesh(preparedMesh, deferredField, reuseRef.current);
-          reuseRef.current = clipped;
-          if (!cancelled) setClipResult(clipped);
-        } catch (error) {
-          console.error('Demo mode clipping failed:', error);
-          if (!cancelled) setClipResult({ inside: null, outside: null });
-        }
-      },
-      { timeout: 100 }
-    );
-
-    return () => {
-      cancelled = true;
-      cancelIdleCallback(idleId);
-    };
-  }, [preparedMesh, deferredField]);
+    try {
+      const clipped = clipPreparedDemoMesh(preparedMesh, patternField, reuseRef.current);
+      reuseRef.current = clipped;
+      setClipResult(clipped);
+    } catch (error) {
+      console.error('Demo mode clipping failed:', error);
+      setClipResult({ inside: null, outside: null });
+    }
+  }, [preparedMesh, patternField.iso, patternField.solidHigh, patternField.clipRuntime]);
 
   useEffect(
     () => () => {
@@ -87,8 +84,8 @@ const DemoModelInner = ({
 
   return (
     <>
-      {outside && <ClippedMesh geometry={outside} color={OUTSIDE_COLOR} />}
-      {inside && <ClippedMesh geometry={inside} color={INSIDE_COLOR} />}
+      {outside && <ClippedMesh geometry={outside} material={outsideMaterial} />}
+      {inside && <ClippedMesh geometry={inside} material={insideMaterial} />}
     </>
   );
 };
@@ -102,7 +99,7 @@ const ObjLoadedDemoModel = ({ model, ...props }: Props & { model: ObjDemoModelTy
 
 const StlLoadedDemoModel = ({ model, ...props }: Props & { model: StlDemoModelType }) => {
   const stl = useLoader(STLLoader, DEMO_STL_PATHS[model]);
-  const externalSource = useMemo(() => mergeVertices(stl), [stl]);
+  const externalSource = useMemo(() => getMergedStlGeometry(DEMO_STL_PATHS[model], stl), [model, stl]);
 
   return <DemoModelInner {...props} externalSource={externalSource} />;
 };

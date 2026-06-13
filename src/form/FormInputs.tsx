@@ -7,6 +7,7 @@ import {
   IconButton,
   Input,
   InputAdornment,
+  ListSubheader,
   MenuItem,
   Select,
   Slider,
@@ -199,6 +200,21 @@ export const FormInputToggleButton = <T extends unknown>({ config, value, onChan
 };
 
 export const FormInputSelect = <T extends unknown>({ propName, config, value, onChange }: InputProps<T>) => {
+  const menuItems = config.optionGroups
+    ? config.optionGroups.flatMap((group) => [
+        <ListSubheader key={`group-${group.label}`}>{group.label}</ListSubheader>,
+        ...group.options.map((opt) => (
+          <MenuItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </MenuItem>
+        ))
+      ])
+    : config.options?.map((opt) => (
+        <MenuItem key={opt.value} value={opt.value}>
+          {opt.label}
+        </MenuItem>
+      ));
+
   return (
     <Grid2 flex={1} flexGrow={1}>
       <FormControl size="small" fullWidth>
@@ -207,11 +223,7 @@ export const FormInputSelect = <T extends unknown>({ propName, config, value, on
           onChange={(event) => onChange(event.target.value as T)}
           inputProps={{ 'aria-labelledby': `input-slider-${propName}` }}
         >
-          {config.options?.map((opt) => (
-            <MenuItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </MenuItem>
-          ))}
+          {menuItems}
         </Select>
       </FormControl>
     </Grid2>

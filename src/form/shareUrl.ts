@@ -1,26 +1,45 @@
-import { formConfig, FormObject, FormPropName } from './schema';
+import { formConfig, FormObject, FormPropName, getShareParamName, isFieldActive, PatternType } from './schema';
 
-const paramNameDictionary = Object.fromEntries(
-  Object.entries(formConfig).map(([key, value]) => [value.paramName, key])
-);
+const buildParamNameDictionary = () => {
+  const dict: Record<string, FormPropName> = {};
 
-export const isFieldIncludedInShare = (key: FormPropName, form: FormObject): boolean => {
-  const config = formConfig[key];
-  if (config.patternId && form.type !== config.patternId) return false;
-  return true;
+  for (const [key, config] of Object.entries(formConfig) as [FormPropName, (typeof formConfig)[FormPropName]][]) {
+    dict[config.paramName] = key;
+
+    if (config.paramNameByPattern) {
+      for (const paramName of Object.values(config.paramNameByPattern)) {
+        if (paramName) dict[paramName] = key;
+      }
+    }
+  }
+
+  return dict;
 };
+
+const paramNameDictionary = buildParamNameDictionary();
+
+export const isFieldIncludedInShare = (key: FormPropName, form: FormObject): boolean =>
+  isFieldActive(formConfig[key], form);
 
 export const queryToForm = (query: string, defaultValues: FormObject): FormObject => {
   const params = Object.fromEntries(new URLSearchParams(query));
 
   let result: FormObject = { ...defaultValues };
 
+  const typeParam = params[formConfig.type.paramName];
+  if (typeParam !== undefined) {
+    result = { ...result, type: typeParam as PatternType };
+  }
+
   for (const [paramName, value] of Object.entries(params)) {
     const key = paramNameDictionary[paramName];
     if (!key) continue;
 
-    const config = formConfig[key as FormPropName];
-    if (!config) continue;
+    const config = formConfig[key];
+    if (!isFieldActive(config, result)) continue;
+
+    const expectedParam = getShareParamName(key, result.type);
+    if (config.paramNameByPattern && paramName !== expectedParam && paramName !== config.paramName) continue;
 
     let parsedValue: unknown = value;
     if (['number', 'slider'].includes(config.type)) {
@@ -51,13 +70,14 @@ export const formToQuery = (form: FormObject): string => {
     if (!isFieldIncludedInShare(propName, form)) continue;
 
     const config = formConfig[propName];
+    const paramName = getShareParamName(propName, form.type);
 
     let valueStr = value.toString();
     if (['switch', 'boolean'].includes(config.type)) {
       valueStr = value ? '1' : '0';
     }
 
-    params.set(config.paramName, valueStr);
+    params.set(paramName, valueStr);
   }
 
   return params.toString();

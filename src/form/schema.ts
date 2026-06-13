@@ -1,21 +1,32 @@
 import z from 'zod';
 import { MathsTools } from 'swiss-ak';
 
+import { applyPatternDefaults, PATTERN_DEFINITIONS, PATTERN_TYPE_OPTION_GROUPS } from '../generate/patterns/registry';
+
 import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
-const coreFormFields = {
+const NOISE_PATTERN_TYPES = ["perlin","simplex"] as const satisfies readonly PatternType[];
+
+
+export const FormSchema = z.object({
+  type: PatternTypeSchema,
   buildVolumePreset: z.string(),
   width: z.number().min(0.01),
   height: z.number().min(0.01),
   depth: z.number().min(0.01),
   threshold: z.number().min(1).max(99),
   thresholdInverse: z.boolean(),
+  seed: z.number(),
+  scale: z.number().min(1),
+  octaves: z.number().int().min(1).max(6),
+  persistence: z.number().min(0.1).max(1),
+
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
   demoEnabled: z.boolean(),
@@ -23,22 +34,7 @@ const coreFormFields = {
   demoSize: z.number().min(5).max(200),
   demoResolution: z.number().int().min(8).max(128),
   fileName: z.string()
-};
-
-const perlinPatternFields = {
-  seed: z.number(),
-  scale: z.number().min(1),
-  octaves: z.number().int().min(1).max(6),
-  persistence: z.number().min(0.1).max(1)
-};
-
-export const FormSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('perlin'),
-    ...coreFormFields,
-    ...perlinPatternFields
-  })
-]);
+});
 
 export type FormSchemaType = typeof FormSchema;
 export type FormObject = z.infer<FormSchemaType>;
@@ -61,20 +57,39 @@ export interface FormInputConfig {
   trueLabel?: string;
   falseLabel?: string;
   options?: { value: any; label: string }[];
+  optionGroups?: { label: string; options: { value: any; label: string }[] }[];
   /** When set, field belongs to this pattern type and is omitted from share URLs for other patterns */
   patternId?: PatternType;
+  /** When set, field is shown for any of these pattern types */
+  patternIds?: readonly PatternType[];
+  /** Share URL param name per pattern type (falls back to paramName) */
+  paramNameByPattern?: Partial<Record<PatternType, string>>;
   show?: (formObj: FormObject) => boolean;
   randomize?: () => any;
   placeholder?: (formObj: FormObject) => string;
 }
 
+export const getShareParamName = (key: FormPropName, type: PatternType): string => {
+  const config = formConfig[key];
+  return config.paramNameByPattern?.[type] ?? config.paramName;
+};
+
 export const isFieldActive = (config: FormInputConfig, form: FormObject): boolean => {
+  if (config.patternIds?.length && !config.patternIds.includes(form.type)) return false;
   if (config.patternId && form.type !== config.patternId) return false;
   return config.show ? config.show(form) : true;
 };
 
-export const getDefaultFileName = (form: FormObject) =>
-  `pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}-sc${form.scale}-th${form.threshold}${form.thresholdInverse ? 'i' : ''}`;
+export const getDefaultFileName = (form: FormObject) => {
+  const parts = [`pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}`];
+
+  if ((["perlin","simplex"] as PatternType[]).includes(form.type)) {
+    parts.push(`sc${form.scale}`);
+  }
+
+  parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
+  return parts.join('-');
+};
 
 export const demoModeSectionNote =
   'Demo mode only gives a very rough demonstration of what the modifier might look like.';
@@ -82,11 +97,11 @@ export const demoModeSectionNote =
 export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   type: {
     paramName: 't',
-    type: 'toggle_button',
-    displayName: 'Pattern Type',
+    type: 'select',
+    displayName: 'Pattern',
     description: 'Type of pattern to generate',
     defaultValue: 'perlin',
-    options: [{ value: 'perlin', label: 'Perlin Noise' }]
+    optionGroups: PATTERN_TYPE_OPTION_GROUPS
   },
   buildVolumePreset: {
     paramName: 'bv',
@@ -152,50 +167,67 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'per_s',
     type: 'number',
     displayName: 'Seed',
-    description: 'Random seed for the noise pattern - same seed always produces the same pattern',
+    description: 'Random seed for the pattern — same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
-    patternId: 'perlin',
+    patternIds: ["perlin","simplex"],
+    paramNameByPattern: {
+      perlin: 'per_s',
+      simplex: 'sim_s'
+    },
     randomize: () => Math.floor(Math.random() * 1000000)
   },
   scale: {
     paramName: 'per_sc',
     type: 'slider',
-    displayName: 'Pattern Scale',
-    description: 'Size of the noise features - larger values produce bigger, smoother blobs',
+    displayName: 'Feature Size',
+    description: 'Size of pattern features — larger values produce bigger, smoother shapes',
     defaultValue: 10,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 0.5,
     min: 1,
     max: 300,
-    patternId: 'perlin'
+    patternIds: ["perlin","simplex"],
+    paramNameByPattern: {
+      perlin: 'per_sc',
+      simplex: 'sim_sc'
+    }
   },
   octaves: {
     paramName: 'per_oc',
     type: 'slider',
     displayName: 'Octaves',
-    description: 'Number of noise layers - more octaves add finer detail on top of the base pattern',
+    description: 'Number of noise layers — more octaves add finer detail on top of the base pattern',
     defaultValue: 2,
     sliderStep: 1,
     inputStep: 1,
     min: 1,
     max: 6,
-    patternId: 'perlin'
+    patternIds: ["perlin","simplex"],
+    paramNameByPattern: {
+      perlin: 'per_oc',
+      simplex: 'sim_oc'
+    }
   },
   persistence: {
     paramName: 'per_p',
     type: 'slider',
     displayName: 'Persistence',
-    description: 'How strongly each extra octave contributes - higher values make fine detail more prominent',
+    description: 'How strongly each extra octave contributes — higher values make fine detail more prominent',
     defaultValue: 0.15,
     sliderStep: 0.05,
     inputStep: 0.05,
     min: 0.1,
     max: 1,
-    patternId: 'perlin',
+    patternIds: ["perlin","simplex"],
+    paramNameByPattern: {
+      perlin: 'per_p',
+      simplex: 'sim_p'
+    },
     show: (form) => form.octaves > 1
   },
+
   previewResolution: {
     paramName: 'pr',
     type: 'slider',
@@ -294,11 +326,11 @@ export const formGroups: FormGroupDef[] = [
   ['buildVolumePreset'],
   ['width', 'depth', 'height'],
   ['threshold', 'thresholdInverse'],
-  {
-    patternId: 'perlin',
-    title: 'Perlin Noise',
-    fields: ['scale', 'seed', 'octaves', 'persistence']
-  },
+  ...PATTERN_DEFINITIONS.map((def) => ({
+    patternId: def.type,
+    title: def.sectionTitle,
+    fields: def.fieldKeys
+  })),
   ['previewResolution', 'exportResolution'],
   ['demoEnabled', 'demoModel', 'demoSize', 'demoResolution'],
   ['fileName']
@@ -307,5 +339,5 @@ export const formGroups: FormGroupDef[] = [
 export const createDefaultFormObj = (): FormObject => {
   const obj = Object.fromEntries(Object.entries(formConfig).map(([key, value]) => [key, value.defaultValue])) as FormObject;
   obj.seed = formConfig.seed.randomize!();
-  return obj;
+  return applyPatternDefaults(obj, obj.type);
 };

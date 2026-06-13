@@ -1,27 +1,16 @@
 import { FormObject } from '../form/schema';
 
 import { GridSpec } from './marchingCubes';
-import { PerlinNoise3D } from './perlin';
+import { getPatternDefinition } from './patterns/registry';
+import { OUTSIDE_FIELD, PatternBounds } from './patterns/types';
 
-const OUTSIDE = -1e9;
-
-export interface PatternBounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  minZ: number;
-  maxZ: number;
-}
+export type { PatternBounds } from './patterns/types';
+export { OUTSIDE_FIELD as OUTSIDE } from './patterns/types';
 
 export interface PatternGridContext {
   field: Float32Array;
   grid: GridSpec;
   iso: number;
-  noise: PerlinNoise3D;
-  scale: number;
-  octaves: number;
-  persistence: number;
   bounds: PatternBounds;
   histogram: Uint32Array;
   sampleCount: number;
@@ -74,14 +63,16 @@ export interface PatternField {
 }
 
 /**
- * Builds the sampled noise grid and iso level used for marching cubes and demo clipping.
+ * Builds the sampled pattern grid and iso level used for marching cubes and demo clipping.
  *
  * @param {FormObject} form - current form settings
  * @param {number} resolution - grid cells along the longest axis
  * @returns {PatternGridContext} field samples and metadata
  */
 export const buildPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
-  const { width, height, depth, seed, scale, threshold, octaves, persistence } = form;
+  const { width, height, depth, threshold } = form;
+  const pattern = getPatternDefinition(form.type);
+  const context = pattern.createContext(form);
 
   const outerW = width;
   const outerD = depth;
@@ -117,7 +108,6 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
     maxZ: height
   };
 
-  const noise = new PerlinNoise3D(seed);
   const field = new Float32Array(grid.nx * grid.ny * grid.nz);
 
   const BINS = 1024;
@@ -135,12 +125,12 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
         const isPadX = i === 0 || i === grid.nx - 1;
 
         if (isPadX || isPadY || isPadZ) {
-          field[idx++] = OUTSIDE;
+          field[idx++] = OUTSIDE_FIELD;
           continue;
         }
 
         const x = grid.x0 + i * sx;
-        const value = noise.fbm(x / scale, y / scale, z / scale, octaves, persistence);
+        const value = pattern.sample(form, x, y, z, context);
         field[idx++] = value;
 
         histogram[Math.min(BINS - 1, Math.max(0, Math.floor(value * BINS)))]++;
@@ -148,6 +138,8 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
       }
     }
   }
+
+  context.dispose?.();
 
   const targetBelow = (sampleCount * threshold) / 100;
   let below = 0;
@@ -158,7 +150,7 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
   }
   const iso = isoBin / BINS;
 
-  return { field, grid, iso, noise, scale, octaves, persistence, bounds, histogram, sampleCount };
+  return { field, grid, iso, bounds, histogram, sampleCount };
 };
 
 /**
@@ -178,7 +170,7 @@ export const prepareMarchingCubesField = (
   if (thresholdInverse) return field;
   const mcField = new Float32Array(field.length);
   for (let i = 0; i < field.length; i++) {
-    mcField[i] = field[i] <= OUTSIDE / 2 ? OUTSIDE : 2 * iso - field[i];
+    mcField[i] = field[i] <= OUTSIDE_FIELD / 2 ? OUTSIDE_FIELD : 2 * iso - field[i];
   }
   return mcField;
 };
@@ -205,17 +197,10 @@ let gridFieldCache: GridFieldCacheEntry | null = null;
 let stablePatternField: PatternField | null = null;
 let stableFieldGridKey: string | null = null;
 
-const gridFieldKey = (form: FormObject, resolution: number) =>
-  [
-    resolution,
-    form.width,
-    form.height,
-    form.depth,
-    form.seed,
-    form.scale,
-    form.octaves,
-    form.persistence
-  ].join(':');
+const gridFieldKey = (form: FormObject, resolution: number) => {
+  const pattern = getPatternDefinition(form.type);
+  return [form.type, resolution, form.width, form.height, form.depth, ...pattern.cacheKeyParts(form)].join(':');
+};
 
 const isInBounds = (x: number, y: number, z: number, bounds: PatternBounds) =>
   x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY && z >= bounds.minZ && z <= bounds.maxZ;

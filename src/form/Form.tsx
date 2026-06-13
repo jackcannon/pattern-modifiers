@@ -1,5 +1,7 @@
 import { Grid2, Paper, Typography } from '@mui/material';
 
+import { applyPatternDefaults } from '../generate/patterns/registry';
+
 import { FormInput } from './FormInputs';
 import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
 import {
@@ -10,7 +12,8 @@ import {
   FormObject,
   FormPropName,
   FormSchemaType,
-  isFieldActive
+  isFieldActive,
+  PatternType
 } from './schema';
 
 import './form.css';
@@ -31,7 +34,13 @@ export const Form = ({ schema, object, onChange }: Props) => {
   const getIndividualFormItem = (key: FormPropName) => {
     const config = formConfig[key];
     const value = object[key as unknown as FormPropName];
-    const onChangeValue = <T extends unknown>(v: T) => onChange({ ...object, [key]: v });
+    const onChangeValue = <T extends unknown>(v: T) => {
+      if (key === 'type') {
+        onChange(applyPatternDefaults({ ...object, type: v as PatternType }, v as PatternType));
+        return;
+      }
+      onChange({ ...object, [key]: v });
+    };
 
     if (!isFieldActive(config, object)) return null;
 

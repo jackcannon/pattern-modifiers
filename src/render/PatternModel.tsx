@@ -27,37 +27,13 @@ export const PatternModel = ({ form }: Props) => {
   const geometry = useMemo(() => {
     if (debouncedForm.demoEnabled) return null;
     return generateGeometry(debouncedForm, debouncedForm.previewResolution);
-  }, [
-    debouncedForm.demoEnabled,
-    debouncedForm.previewResolution,
-    debouncedForm.width,
-    debouncedForm.height,
-    debouncedForm.depth,
-    debouncedForm.seed,
-    debouncedForm.scale,
-    debouncedForm.threshold,
-    debouncedForm.thresholdInverse,
-    debouncedForm.octaves,
-    debouncedForm.persistence
-  ]);
+  }, [debouncedForm]);
   useEffect(() => () => geometry?.dispose(), [geometry]);
 
   const demoPatternField = useMemo(() => {
     if (!debouncedForm.demoEnabled) return null;
     return createPatternField(debouncedForm, debouncedForm.demoResolution);
-  }, [
-    debouncedForm.demoEnabled,
-    debouncedForm.demoResolution,
-    debouncedForm.width,
-    debouncedForm.height,
-    debouncedForm.depth,
-    debouncedForm.seed,
-    debouncedForm.scale,
-    debouncedForm.threshold,
-    debouncedForm.thresholdInverse,
-    debouncedForm.octaves,
-    debouncedForm.persistence
-  ]);
+  }, [debouncedForm]);
 
   const buildVolumeEdges = useMemo(
     () => new EdgesGeometry(new BoxGeometry(plate.width, plate.depth, plate.height)),

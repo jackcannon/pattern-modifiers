@@ -37,8 +37,8 @@ interface TopographicalContext extends PatternSampleContext {
 }
 
 /**
- * Builds the noise value distribution, derives evenly-spaced percentile topographical levels, and precomputes a
- * lookup table of the distance (in noise-value units) from any value to its nearest topographical level.
+ * Builds the noise value distribution, derives evenly-spaced topographical levels in noise value space, and
+ * precomputes a lookup table of the distance (in noise-value units) from any value to its nearest level.
  *
  * @param {FormObject} form - current form settings
  * @returns {TopographicalContext} sampling context for the topographical pattern
@@ -76,14 +76,16 @@ const createTopographicalContext = (form: FormObject): TopographicalContext => {
   const vmax = samples[total - 1];
   const range = vmax - vmin || 1;
 
-  // Topographical levels sit at evenly spaced percentiles of the noise distribution (10%, 20%, ...).
+  // Evenly spaced levels in noise *value* space (like real topographic elevation intervals).
+  // Percentile spacing bunches lines on common slopes and leaves large empty regions inside closed loops
+  // at peaks and valleys where values are rare but occupy a lot of surface area.
   const spacingFrac = form.lineSpacing / 100;
+  const valueStep = spacingFrac * range;
   const levels: number[] = [];
-  for (let q = spacingFrac; q < 0.9995; q += spacingFrac) {
-    const pos = q * (total - 1);
-    const lo = Math.floor(pos);
-    const hi = Math.min(total - 1, lo + 1);
-    levels.push(samples[lo] + (samples[hi] - samples[lo]) * (pos - lo));
+  if (valueStep > 0) {
+    for (let v = vmin + valueStep; v < vmax; v += valueStep) {
+      levels.push(v);
+    }
   }
 
   const step = range / (LUT_BINS - 1);

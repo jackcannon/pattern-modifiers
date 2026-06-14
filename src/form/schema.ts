@@ -299,7 +299,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'tls',
     type: 'slider',
     displayName: 'Line Spacing',
-    description: 'Percentile interval between topographical lines — smaller values pack in more lines',
+    description: 'Interval between topographical lines as a percentage of the noise value range — smaller values pack in more lines',
     defaultValue: 10,
     unit: '%',
     sliderStep: 1,

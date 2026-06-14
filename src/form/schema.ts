@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const FormSchema = z.object({
@@ -29,6 +29,8 @@ export const FormSchema = z.object({
   amplitude: z.number().min(0.01).max(1),
   strutSpacing: z.number().min(1),
   strutRadius: z.number().min(0.1),
+  lineSpacing: z.number().min(1).max(50),
+  lineThickness: z.number().min(0.5).max(20),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -93,7 +95,11 @@ export const getDefaultFileName = (form: FormObject) => {
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
 
-  parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
+  if (form.type === 'topographical') {
+    parts.push(`tp${form.lineSpacing}-${form.lineThickness}mm`);
+  } else {
+    parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
+  }
   return parts.join('-');
 };
 
@@ -160,14 +166,16 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 1,
     inputStep: 1,
     min: 1,
-    max: 99
+    max: 99,
+    show: (form) => form.type !== 'topographical'
   },
   thresholdInverse: {
     paramName: 'inv',
     type: 'boolean',
     displayName: 'Inverse',
     description: 'Flip which side of the threshold is solid — off keeps the lowest values (0% to threshold), on keeps the highest (threshold to 100%)',
-    defaultValue: false
+    defaultValue: false,
+    show: (form) => form.type !== 'topographical'
   },
   seed: {
     paramName: 's',
@@ -287,6 +295,30 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 0.1,
     max: 50
   },
+  lineSpacing: {
+    paramName: 'tls',
+    type: 'slider',
+    displayName: 'Line Spacing',
+    description: 'Percentile interval between topographical lines — smaller values pack in more lines',
+    defaultValue: 10,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 2,
+    max: 50
+  },
+  lineThickness: {
+    paramName: 'tlt',
+    type: 'slider',
+    displayName: 'Line Thickness',
+    description: 'Width of each topographical line — uniform everywhere, measured in millimetres',
+    defaultValue: 1.5,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0.5,
+    max: 20
+  },
 
   previewResolution: {
     paramName: 'pr',
@@ -391,8 +423,8 @@ export const formGroups: FormGroupDef[] = [
     title: def.sectionTitle,
     fields: def.fieldKeys
   })),
-  ['previewResolution', 'exportResolution'],
   ['demoEnabled', 'demoModel', 'demoSize', 'demoResolution'],
+  ['previewResolution', 'exportResolution'],
   ['fileName']
 ];
 

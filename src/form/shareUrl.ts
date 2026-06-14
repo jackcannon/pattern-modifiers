@@ -23,7 +23,14 @@ const LEGACY_PARAM_ALIASES: Record<string, FormPropName> = {
   wav_wl: 'wavelength',
   wav_a: 'amplitude',
   lat_sp: 'strutSpacing',
-  lat_r: 'strutRadius'
+  lat_r: 'strutRadius',
+  cls: 'lineSpacing',
+  clt: 'lineThickness'
+};
+
+/** Previous pattern type values. Still accepted when loading share links */
+const LEGACY_PATTERN_TYPES: Record<string, PatternType> = {
+  contour: 'topographical'
 };
 
 const buildParamNameDictionary = () => {
@@ -47,7 +54,8 @@ export const queryToForm = (query: string, defaultValues: FormObject): FormObjec
 
   const typeParam = params[formConfig.type.paramName];
   if (typeParam !== undefined) {
-    result = { ...result, type: typeParam as PatternType };
+    const type = LEGACY_PATTERN_TYPES[typeParam] ?? typeParam;
+    result = { ...result, type: type as PatternType };
   }
 
   for (const [paramName, value] of Object.entries(params)) {

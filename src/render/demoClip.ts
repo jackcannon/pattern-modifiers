@@ -39,6 +39,8 @@ const copyIndices = (indexAttr: BufferAttribute) => {
 };
 
 const sampleAt = (clip: ClipRuntime, x: number, y: number, z: number) => {
+  if (clip.analytic) return clip.analytic(x, y, z);
+
   const fx = (x - clip.x0) * clip.invSx;
   const fy = (y - clip.y0) * clip.invSy;
   const fz = (z - clip.z0) * clip.invSz;
@@ -268,6 +270,7 @@ const clipTriangle = (
   ib: number,
   ic: number,
   positions: Float32Array,
+  vertexSolid: Uint8Array,
   edgeCache: EdgeCache,
   inside: TriangleWriter,
   outside: TriangleWriter
@@ -299,10 +302,10 @@ const clipTriangle = (
   let tcy = cy;
   let tcz = cz;
 
-  const sa = isSolidAt(clip, ax, ay, az);
-  const sb = isSolidAt(clip, bx, by, bz);
-  const sc = isSolidAt(clip, cx, cy, cz);
-  const solidCount = (sa ? 1 : 0) + (sb ? 1 : 0) + (sc ? 1 : 0);
+  const sa = vertexSolid[ia] === 1;
+  const sb = vertexSolid[ib] === 1;
+  const sc = vertexSolid[ic] === 1;
+  const solidCount = vertexSolid[ia] + vertexSolid[ib] + vertexSolid[ic];
 
   if (solidCount === 0) {
     outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
@@ -623,6 +626,14 @@ export const clipPreparedDemoMesh = (
   outside.reset(triangleCount);
   edgeCache.clear();
 
+  // Classify each unique mesh vertex once (vertices are shared by many triangles, and the analytic field
+  // sample can be expensive), then look up the cached result while clipping.
+  const vertexCount = positions.length / 3;
+  const vertexSolid = new Uint8Array(vertexCount);
+  for (let v = 0, p = 0; v < vertexCount; v++, p += 3) {
+    vertexSolid[v] = isSolidAt(clip, positions[p], positions[p + 1], positions[p + 2]) ? 1 : 0;
+  }
+
   const indices = index.array as Uint32Array | Uint16Array;
   const indexLength = index.count;
 
@@ -634,6 +645,7 @@ export const clipPreparedDemoMesh = (
         indices[t + 1],
         indices[t + 2],
         positions,
+        vertexSolid,
         edgeCache,
         inside,
         outside
@@ -641,7 +653,7 @@ export const clipPreparedDemoMesh = (
     }
   } else {
     for (let t = 0; t < indexLength; t += 3) {
-      clipTriangle(clip, indices[t], indices[t + 1], indices[t + 2], positions, edgeCache, inside, outside);
+      clipTriangle(clip, indices[t], indices[t + 1], indices[t + 2], positions, vertexSolid, edgeCache, inside, outside);
     }
   }
 

@@ -5,6 +5,7 @@ import { voronoiPattern } from './voronoiPattern';
 import { ridgedPattern } from './ridgedPattern';
 import { gyroidPattern } from './gyroidPattern';
 import { wavesPattern } from './wavesPattern';
+import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
@@ -19,6 +20,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   ridgedPattern,
   gyroidPattern,
   wavesPattern,
+  topographicalPattern,
   latticePattern
 ];
 

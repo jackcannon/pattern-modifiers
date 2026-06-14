@@ -1,11 +1,11 @@
 import { edgeTable, triTable } from 'three/examples/jsm/objects/MarchingCubes.js';
 
 // Tables are flat Int32Arrays at runtime (the .d.ts types them incorrectly)
-const EDGE_TABLE = edgeTable as unknown as Int32Array;
-const TRI_TABLE = triTable as unknown as Int32Array;
+export const EDGE_TABLE = edgeTable as unknown as Int32Array;
+export const TRI_TABLE = triTable as unknown as Int32Array;
 
 // Bourke corner ordering: offsets (di, dj, dk) for corners 0-7
-const CORNERS: [number, number, number][] = [
+export const CORNERS: [number, number, number][] = [
   [0, 0, 0],
   [1, 0, 0],
   [1, 1, 0],
@@ -17,7 +17,7 @@ const CORNERS: [number, number, number][] = [
 ];
 
 // Corner pairs for each of the 12 cube edges
-const EDGES: [number, number][] = [
+export const EDGES: [number, number][] = [
   [0, 1],
   [1, 2],
   [2, 3],

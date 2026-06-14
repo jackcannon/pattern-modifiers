@@ -2,7 +2,7 @@ import { FormObject } from '../form/schema';
 
 import { GridSpec } from './marchingCubes';
 import { getPatternDefinition } from './patterns/registry';
-import { OUTSIDE_FIELD, PatternBounds } from './patterns/types';
+import { ClipFieldSpec, OUTSIDE_FIELD, PatternBounds } from './patterns/types';
 
 export type { PatternBounds } from './patterns/types';
 export { OUTSIDE_FIELD as OUTSIDE } from './patterns/types';
@@ -37,6 +37,8 @@ export interface ClipRuntime {
   maxI: number;
   maxJ: number;
   maxK: number;
+  /** When set, demo clipping evaluates this exact field instead of sampling the voxel grid */
+  analytic?: (x: number, y: number, z: number) => number;
 }
 
 export interface ClipField {
@@ -148,7 +150,7 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
     below += histogram[isoBin];
     isoBin++;
   }
-  const iso = isoBin / BINS;
+  const iso = pattern.fixedIso ?? isoBin / BINS;
 
   return { field, grid, iso, bounds, histogram, sampleCount };
 };
@@ -283,6 +285,68 @@ const createGridSampler = (field: Float32Array, grid: GridSpec) => {
 };
 
 /**
+ * Builds a {@link PatternField} backed by an analytic, grid-free clip field (used by patterns whose solid
+ * region is too thin to capture reliably on a voxel grid).
+ *
+ * @param {ClipFieldSpec} spec - analytic field definition
+ * @returns {PatternField} field sampler driving demo clipping
+ */
+const createAnalyticPatternField = (spec: ClipFieldSpec): PatternField => {
+  const { sample, iso, solidHigh, bounds, maxCellSize } = spec;
+
+  const clipRuntime: ClipRuntime = {
+    iso,
+    solidHigh,
+    minX: bounds.minX,
+    maxX: bounds.maxX,
+    minY: bounds.minY,
+    maxY: bounds.maxY,
+    minZ: bounds.minZ,
+    maxZ: bounds.maxZ,
+    samples: new Float32Array(0),
+    x0: 0,
+    y0: 0,
+    z0: 0,
+    invSx: 0,
+    invSy: 0,
+    invSz: 0,
+    strideY: 0,
+    strideZ: 0,
+    maxI: 0,
+    maxJ: 0,
+    maxK: 0,
+    analytic: sample
+  };
+
+  const clip: ClipField = {
+    iso,
+    minX: bounds.minX,
+    maxX: bounds.maxX,
+    minY: bounds.minY,
+    maxY: bounds.maxY,
+    minZ: bounds.minZ,
+    maxZ: bounds.maxZ,
+    sample,
+    runtime: clipRuntime
+  };
+
+  return {
+    iso,
+    solidHigh,
+    maxCellSize,
+    clip,
+    clipRuntime,
+    inBounds: (x, y, z) => isInBounds(x, y, z, bounds),
+    noiseAt: sample,
+    isSolid: (x, y, z) => {
+      if (!isInBounds(x, y, z, bounds)) return false;
+      const value = sample(x, y, z);
+      return solidHigh ? value >= iso : value <= iso;
+    }
+  };
+};
+
+/**
  * Creates a continuous field sampler for clipping demo meshes against the pattern volume.
  *
  * @param {FormObject} form - current form settings
@@ -290,6 +354,16 @@ const createGridSampler = (field: Float32Array, grid: GridSpec) => {
  * @returns {PatternField} field sampler
  */
 export const createPatternField = (form: FormObject, resolution: number): PatternField => {
+  const patternDef = getPatternDefinition(form.type);
+  if (patternDef.createClipField) {
+    const cacheKey = gridFieldKey(form, resolution);
+    if (stablePatternField && stableFieldGridKey === cacheKey) return stablePatternField;
+    stablePatternField = createAnalyticPatternField(patternDef.createClipField(form, resolution));
+    stableFieldGridKey = cacheKey;
+    gridFieldCache = null;
+    return stablePatternField;
+  }
+
   const cacheKey = gridFieldKey(form, resolution);
   let context: PatternGridContext;
   let clipRuntime: ClipRuntime;
@@ -307,8 +381,9 @@ export const createPatternField = (form: FormObject, resolution: number): Patter
     stableFieldGridKey = null;
   }
 
-  const iso = computeIso(context.histogram, context.sampleCount, form.threshold);
-  const solidHigh = form.thresholdInverse;
+  const pattern = getPatternDefinition(form.type);
+  const iso = pattern.fixedIso ?? computeIso(context.histogram, context.sampleCount, form.threshold);
+  const solidHigh = pattern.fixedIso !== undefined ? false : form.thresholdInverse;
   clipRuntime.iso = iso;
   clipRuntime.solidHigh = solidHigh;
 

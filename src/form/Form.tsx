@@ -1,5 +1,7 @@
 import { Grid2, Paper, Typography } from '@mui/material';
 
+import { getPatternDefinition } from '../generate/patterns/registry';
+
 import { FormInput } from './FormInputs';
 import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
 import {
@@ -36,7 +38,8 @@ export const Form = ({ schema, object, onChange }: Props) => {
     const value = object[key as unknown as FormPropName];
     const onChangeValue = <T extends unknown>(v: T) => {
       if (key === 'type') {
-        onChange({ ...object, type: v as PatternType });
+        const nextType = v as PatternType;
+        onChange({ ...object, type: nextType, ...getPatternDefinition(nextType).fieldDefaults });
         return;
       }
       onChange({ ...object, [key]: v });
@@ -80,6 +83,10 @@ export const Form = ({ schema, object, onChange }: Props) => {
         const { fields, title, patternId } = normalizeGroup(group);
 
         if (patternId && object.type !== patternId) return null;
+
+        const hasBuildVolume = fields.includes('buildVolumePreset');
+        const hasActiveField = fields.some((key) => isFieldActive(key, object));
+        if (!hasBuildVolume && !hasActiveField) return null;
 
         if (fields.length === 1 && typeof group === 'string') {
           return getIndividualFormItem(fields[0]);

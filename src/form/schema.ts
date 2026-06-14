@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 const NOISE_PATTERN_TYPES = ["perlin","simplex","ridged"] as const satisfies readonly PatternType[];
@@ -26,6 +26,8 @@ export const FormSchema = z.object({
   scale: z.number().min(1),
   octaves: z.number().int().min(1).max(6),
   persistence: z.number().min(0.1).max(1),
+  period: z.number().min(1),
+  phase: z.number(),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -89,6 +91,10 @@ export const getDefaultFileName = (form: FormObject) => {
 
   else if ((["worley","voronoi"] as PatternType[]).includes(form.type)) {
     parts.push(`sc${form.scale}`);
+  }
+
+  else if (form.type === 'gyroid') {
+    parts.push(`p${form.period}`);
   }
 
   parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
@@ -238,6 +244,32 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
       ridged: 'rid_p'
     },
     show: (form) => form.octaves > 1
+  },
+  period: {
+    paramName: 'gyr_p',
+    type: 'slider',
+    displayName: 'Period',
+    description: 'Distance between gyroid surface repeats',
+    defaultValue: 25,
+    unit: 'mm',
+    sliderStep: 1,
+    inputStep: 0.5,
+    min: 1,
+    max: 200,
+    patternId: 'gyroid'
+  },
+  phase: {
+    paramName: 'gyr_ph',
+    type: 'slider',
+    displayName: 'Phase',
+    description: 'Rotates the gyroid surface in space',
+    defaultValue: 0,
+    unit: 'rad',
+    sliderStep: 0.1,
+    inputStep: 0.05,
+    min: 0,
+    max: 6.28,
+    patternId: 'gyroid'
   },
 
   previewResolution: {

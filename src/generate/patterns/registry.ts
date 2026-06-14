@@ -4,6 +4,7 @@ import { worleyPattern } from './worleyPattern';
 import { voronoiPattern } from './voronoiPattern';
 import { ridgedPattern } from './ridgedPattern';
 import { gyroidPattern } from './gyroidPattern';
+import { wavesPattern } from './wavesPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -15,7 +16,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   worleyPattern,
   voronoiPattern,
   ridgedPattern,
-  gyroidPattern
+  gyroidPattern,
+  wavesPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

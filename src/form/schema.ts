@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 const NOISE_PATTERN_TYPES = ["perlin","simplex","ridged"] as const satisfies readonly PatternType[];
@@ -28,6 +28,8 @@ export const FormSchema = z.object({
   persistence: z.number().min(0.1).max(1),
   period: z.number().min(1),
   phase: z.number(),
+  wavelength: z.number().min(1),
+  amplitude: z.number().min(0.01).max(1),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -95,6 +97,10 @@ export const getDefaultFileName = (form: FormObject) => {
 
   else if (form.type === 'gyroid') {
     parts.push(`p${form.period}`);
+  }
+
+  else if (form.type === 'waves') {
+    parts.push(`wl${form.wavelength}`);
   }
 
   parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
@@ -270,6 +276,31 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 0,
     max: 6.28,
     patternId: 'gyroid'
+  },
+  wavelength: {
+    paramName: 'wav_wl',
+    type: 'slider',
+    displayName: 'Wavelength',
+    description: 'Distance between wave peaks along each axis',
+    defaultValue: 50,
+    unit: 'mm',
+    sliderStep: 1,
+    inputStep: 0.5,
+    min: 1,
+    max: 300,
+    patternId: 'waves'
+  },
+  amplitude: {
+    paramName: 'wav_a',
+    type: 'slider',
+    displayName: 'Amplitude',
+    description: 'Strength of the wave bands — higher values create stronger contrast',
+    defaultValue: 0.35,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0.01,
+    max: 1,
+    patternId: 'waves'
   },
 
   previewResolution: {

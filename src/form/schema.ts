@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 const NOISE_PATTERN_TYPES = ["perlin","simplex","ridged"] as const satisfies readonly PatternType[];
@@ -30,6 +30,8 @@ export const FormSchema = z.object({
   phase: z.number(),
   wavelength: z.number().min(1),
   amplitude: z.number().min(0.01).max(1),
+  strutSpacing: z.number().min(1),
+  strutRadius: z.number().min(0.1),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -101,6 +103,10 @@ export const getDefaultFileName = (form: FormObject) => {
 
   else if (form.type === 'waves') {
     parts.push(`wl${form.wavelength}`);
+  }
+
+  else if (form.type === 'lattice') {
+    parts.push(`sp${form.strutSpacing}`);
   }
 
   parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
@@ -301,6 +307,32 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 0.01,
     max: 1,
     patternId: 'waves'
+  },
+  strutSpacing: {
+    paramName: 'lat_sp',
+    type: 'slider',
+    displayName: 'Strut Spacing',
+    description: 'Distance between lattice struts on the grid',
+    defaultValue: 20,
+    unit: 'mm',
+    sliderStep: 1,
+    inputStep: 0.5,
+    min: 1,
+    max: 200,
+    patternId: 'lattice'
+  },
+  strutRadius: {
+    paramName: 'lat_r',
+    type: 'slider',
+    displayName: 'Strut Radius',
+    description: 'Thickness of each lattice strut',
+    defaultValue: 2.5,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0.1,
+    max: 50,
+    patternId: 'lattice'
   },
 
   previewResolution: {

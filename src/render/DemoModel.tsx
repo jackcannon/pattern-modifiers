@@ -19,7 +19,7 @@ interface Props {
 }
 
 const INSIDE_COLOR = '#FFDC00';
-const OUTSIDE_COLOR = '#5B8DEF';
+const OUTSIDE_COLOR = '#0074d9';
 
 const insideMaterial = new MeshStandardMaterial({
   color: INSIDE_COLOR,
@@ -29,7 +29,10 @@ const insideMaterial = new MeshStandardMaterial({
   side: DoubleSide,
   polygonOffset: true,
   polygonOffsetFactor: -1,
-  polygonOffsetUnits: 1
+  polygonOffsetUnits: 1,
+  transparent: false,
+  opacity: 1,
+  depthWrite: true
 });
 
 const outsideMaterial = new MeshStandardMaterial({
@@ -40,12 +43,21 @@ const outsideMaterial = new MeshStandardMaterial({
   side: DoubleSide,
   polygonOffset: true,
   polygonOffsetFactor: 1,
-  polygonOffsetUnits: 1
+  polygonOffsetUnits: 1,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false
 });
 
-const ClippedMesh = ({ geometry, material }: { geometry: BufferGeometry; material: MeshStandardMaterial }) => (
-  <mesh geometry={geometry} renderOrder={2} material={material} />
-);
+const ClippedMesh = ({
+  geometry,
+  material,
+  renderOrder
+}: {
+  geometry: BufferGeometry;
+  material: MeshStandardMaterial;
+  renderOrder: number;
+}) => <mesh geometry={geometry} renderOrder={renderOrder} material={material} />;
 
 const DemoModelInner = ({
   form,
@@ -84,8 +96,8 @@ const DemoModelInner = ({
 
   return (
     <>
-      {outside && <ClippedMesh geometry={outside} material={outsideMaterial} />}
-      {inside && <ClippedMesh geometry={inside} material={insideMaterial} />}
+      {outside && <ClippedMesh geometry={outside} material={outsideMaterial} renderOrder={1} />}
+      {inside && <ClippedMesh geometry={inside} material={insideMaterial} renderOrder={2} />}
     </>
   );
 };

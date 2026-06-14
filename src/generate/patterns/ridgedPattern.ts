@@ -14,11 +14,6 @@ export const ridgedPattern: PatternDefinition = {
   label: 'Ridged',
   category: 'noise',
   sectionTitle: 'Ridged noise',
-  defaultFieldValues: {
-    scale: 20,
-    octaves: 4,
-    persistence: 0.5
-  },
   fieldKeys: [...NOISE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale, form.octaves, form.persistence];

@@ -20,11 +20,11 @@ import {
 import HelpIcon from '@mui/icons-material/Help';
 import CasinoIcon from '@mui/icons-material/Casino';
 
-import { FormInputConfig } from './schema';
+import { FormInputConfig, ResolvedFormInputConfig } from './schema';
 
 interface InputProps<T> {
   propName: string;
-  config: FormInputConfig;
+  config: ResolvedFormInputConfig;
   value: T;
   onChange: (v: T) => void;
   max?: number;

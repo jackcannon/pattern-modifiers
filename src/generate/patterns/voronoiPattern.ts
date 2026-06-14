@@ -10,9 +10,6 @@ export const voronoiPattern: PatternDefinition = {
   label: 'Voronoi',
   category: 'cellular',
   sectionTitle: 'Voronoi noise',
-  defaultFieldValues: {
-    scale: 18
-  },
   fieldKeys: [...CELL_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale];

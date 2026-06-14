@@ -1,7 +1,7 @@
 import z from 'zod';
 import { MathsTools } from 'swiss-ak';
 
-import { applyPatternDefaults, PATTERN_DEFINITIONS, PATTERN_TYPE_OPTION_GROUPS } from '../generate/patterns/registry';
+import { getPatternDefinition, PATTERN_DEFINITIONS, PATTERN_FIELD_KEYS, PATTERN_TYPE_OPTION_GROUPS } from '../generate/patterns/registry';
 
 import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 
@@ -10,9 +10,6 @@ export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
 export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
-
-const NOISE_PATTERN_TYPES = ["perlin","simplex","ridged"] as const satisfies readonly PatternType[];
-const CELL_PATTERN_TYPES = ["worley","voronoi"] as const satisfies readonly PatternType[];
 
 export const FormSchema = z.object({
   type: PatternTypeSchema,
@@ -50,8 +47,8 @@ export type FormInputType = 'slider' | 'number' | 'text' | 'switch' | 'boolean' 
 export interface FormInputConfig {
   paramName: string;
   type: FormInputType;
-  displayName: string;
-  description: string;
+  displayName: string | ((formObj: FormObject) => string);
+  description: string | ((formObj: FormObject) => string);
   warning?: string;
   note?: string;
   defaultValue: any;
@@ -64,50 +61,37 @@ export interface FormInputConfig {
   falseLabel?: string;
   options?: { value: any; label: string }[];
   optionGroups?: { label: string; options: { value: any; label: string }[] }[];
-  /** When set, field belongs to this pattern type and is omitted from share URLs for other patterns */
-  patternId?: PatternType;
-  /** When set, field is shown for any of these pattern types */
-  patternIds?: readonly PatternType[];
-  /** Share URL param name per pattern type (falls back to paramName) */
-  paramNameByPattern?: Partial<Record<PatternType, string>>;
   show?: (formObj: FormObject) => boolean;
   randomize?: () => any;
   placeholder?: (formObj: FormObject) => string;
 }
 
-export const getShareParamName = (key: FormPropName, type: PatternType): string => {
-  const config = formConfig[key];
-  return config.paramNameByPattern?.[type] ?? config.paramName;
+export type ResolvedFormInputConfig = Omit<FormInputConfig, 'displayName' | 'description'> & {
+  displayName: string;
+  description: string;
 };
 
-export const isFieldActive = (config: FormInputConfig, form: FormObject): boolean => {
-  if (config.patternIds?.length && !config.patternIds.includes(form.type)) return false;
-  if (config.patternId && form.type !== config.patternId) return false;
+export const resolveFormText = (
+  text: string | ((formObj: FormObject) => string),
+  form: FormObject
+): string => (typeof text === 'function' ? text(form) : text);
+
+export const isFieldActive = (key: FormPropName, form: FormObject): boolean => {
+  const config = formConfig[key];
+  if (PATTERN_FIELD_KEYS.has(key) && !getPatternDefinition(form.type).fieldKeys.includes(key)) {
+    return false;
+  }
   return config.show ? config.show(form) : true;
 };
 
 export const getDefaultFileName = (form: FormObject) => {
   const parts = [`pattern-modifier-${form.type}-${form.width}x${form.depth}x${form.height}`];
+  const patternFields = getPatternDefinition(form.type).fieldKeys;
 
-  if ((["perlin","simplex","ridged"] as PatternType[]).includes(form.type)) {
-    parts.push(`sc${form.scale}`);
-  }
-
-  else if ((["worley","voronoi"] as PatternType[]).includes(form.type)) {
-    parts.push(`sc${form.scale}`);
-  }
-
-  else if (form.type === 'gyroid') {
-    parts.push(`p${form.period}`);
-  }
-
-  else if (form.type === 'waves') {
-    parts.push(`wl${form.wavelength}`);
-  }
-
-  else if (form.type === 'lattice') {
-    parts.push(`sp${form.strutSpacing}`);
-  }
+  if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
+  else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
+  else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
+  else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
 
   parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
   return parts.join('-');
@@ -186,44 +170,31 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     defaultValue: false
   },
   seed: {
-    paramName: 'per_s',
+    paramName: 's',
     type: 'number',
     displayName: 'Seed',
     description: 'Random seed for the pattern — same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
-    patternIds: ["perlin","simplex","ridged","worley","voronoi"],
-    paramNameByPattern: {
-      perlin: 'per_s',
-      simplex: 'sim_s',
-      ridged: 'rid_s',
-      worley: 'wor_s',
-      voronoi: 'vor_s'
-    },
     randomize: () => Math.floor(Math.random() * 1000000)
   },
   scale: {
-    paramName: 'per_sc',
+    paramName: 'sc',
     type: 'slider',
-    displayName: 'Feature Size',
-    description: 'Size of pattern features — larger values produce bigger, smoother shapes',
+    displayName: (form) => (form.type === 'worley' || form.type === 'voronoi' ? 'Cell Size' : 'Feature Size'),
+    description: (form) =>
+      form.type === 'worley' || form.type === 'voronoi'
+        ? 'Size of each cell — larger values produce bigger cells'
+        : 'Size of pattern features — larger values produce bigger, smoother shapes',
     defaultValue: 10,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 0.5,
     min: 1,
-    max: 300,
-    patternIds: ["perlin","simplex","ridged","worley","voronoi"],
-    paramNameByPattern: {
-      perlin: 'per_sc',
-      simplex: 'sim_sc',
-      ridged: 'rid_sc',
-      worley: 'wor_sc',
-      voronoi: 'vor_sc'
-    }
+    max: 300
   },
   octaves: {
-    paramName: 'per_oc',
+    paramName: 'oc',
     type: 'slider',
     displayName: 'Octaves',
     description: 'Number of noise layers — more octaves add finer detail on top of the base pattern',
@@ -231,16 +202,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 1,
     inputStep: 1,
     min: 1,
-    max: 6,
-    patternIds: ["perlin","simplex","ridged"],
-    paramNameByPattern: {
-      perlin: 'per_oc',
-      simplex: 'sim_oc',
-      ridged: 'rid_oc'
-    }
+    max: 6
   },
   persistence: {
-    paramName: 'per_p',
+    paramName: 'pers',
     type: 'slider',
     displayName: 'Persistence',
     description: 'How strongly each extra octave contributes — higher values make fine detail more prominent',
@@ -249,16 +214,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 0.1,
     max: 1,
-    patternIds: ["perlin","simplex","ridged"],
-    paramNameByPattern: {
-      perlin: 'per_p',
-      simplex: 'sim_p',
-      ridged: 'rid_p'
-    },
     show: (form) => form.octaves > 1
   },
   period: {
-    paramName: 'gyr_p',
+    paramName: 'gp',
     type: 'slider',
     displayName: 'Period',
     description: 'Distance between gyroid surface repeats',
@@ -267,11 +226,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 1,
     inputStep: 0.5,
     min: 1,
-    max: 200,
-    patternId: 'gyroid'
+    max: 200
   },
   phase: {
-    paramName: 'gyr_ph',
+    paramName: 'gph',
     type: 'slider',
     displayName: 'Phase',
     description: 'Rotates the gyroid surface in space',
@@ -280,11 +238,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 0.1,
     inputStep: 0.05,
     min: 0,
-    max: 6.28,
-    patternId: 'gyroid'
+    max: 6.28
   },
   wavelength: {
-    paramName: 'wav_wl',
+    paramName: 'wl',
     type: 'slider',
     displayName: 'Wavelength',
     description: 'Distance between wave peaks along each axis',
@@ -293,11 +250,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 1,
     inputStep: 0.5,
     min: 1,
-    max: 300,
-    patternId: 'waves'
+    max: 300
   },
   amplitude: {
-    paramName: 'wav_a',
+    paramName: 'amp',
     type: 'slider',
     displayName: 'Amplitude',
     description: 'Strength of the wave bands — higher values create stronger contrast',
@@ -305,11 +261,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 0.05,
     inputStep: 0.05,
     min: 0.01,
-    max: 1,
-    patternId: 'waves'
+    max: 1
   },
   strutSpacing: {
-    paramName: 'lat_sp',
+    paramName: 'lsp',
     type: 'slider',
     displayName: 'Strut Spacing',
     description: 'Distance between lattice struts on the grid',
@@ -318,11 +273,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 1,
     inputStep: 0.5,
     min: 1,
-    max: 200,
-    patternId: 'lattice'
+    max: 200
   },
   strutRadius: {
-    paramName: 'lat_r',
+    paramName: 'lr',
     type: 'slider',
     displayName: 'Strut Radius',
     description: 'Thickness of each lattice strut',
@@ -331,8 +285,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 0.5,
     inputStep: 0.25,
     min: 0.1,
-    max: 50,
-    patternId: 'lattice'
+    max: 50
   },
 
   previewResolution: {
@@ -446,5 +399,5 @@ export const formGroups: FormGroupDef[] = [
 export const createDefaultFormObj = (): FormObject => {
   const obj = Object.fromEntries(Object.entries(formConfig).map(([key, value]) => [key, value.defaultValue])) as FormObject;
   obj.seed = formConfig.seed.randomize!();
-  return applyPatternDefaults(obj, obj.type);
+  return obj;
 };

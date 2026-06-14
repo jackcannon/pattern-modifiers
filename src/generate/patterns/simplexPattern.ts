@@ -14,11 +14,6 @@ export const simplexPattern: PatternDefinition = {
   label: 'Simplex',
   category: 'noise',
   sectionTitle: 'Simplex noise',
-  defaultFieldValues: {
-    scale: 12,
-    octaves: 3,
-    persistence: 0.3
-  },
   fieldKeys: [...NOISE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale, form.octaves, form.persistence];

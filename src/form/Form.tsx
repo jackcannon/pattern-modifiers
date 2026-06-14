@@ -1,7 +1,5 @@
 import { Grid2, Paper, Typography } from '@mui/material';
 
-import { applyPatternDefaults } from '../generate/patterns/registry';
-
 import { FormInput } from './FormInputs';
 import { BuildVolumePresetSelect } from './BuildVolumePresetSelect';
 import {
@@ -13,7 +11,9 @@ import {
   FormPropName,
   FormSchemaType,
   isFieldActive,
-  PatternType
+  PatternType,
+  resolveFormText,
+  ResolvedFormInputConfig
 } from './schema';
 
 import './form.css';
@@ -36,17 +36,22 @@ export const Form = ({ schema, object, onChange }: Props) => {
     const value = object[key as unknown as FormPropName];
     const onChangeValue = <T extends unknown>(v: T) => {
       if (key === 'type') {
-        onChange(applyPatternDefaults({ ...object, type: v as PatternType }, v as PatternType));
+        onChange({ ...object, type: v as PatternType });
         return;
       }
       onChange({ ...object, [key]: v });
     };
 
-    if (!isFieldActive(config, object)) return null;
+    if (!isFieldActive(key, object)) return null;
 
     const max = typeof config.max === 'function' ? config.max(object) : config.max;
 
     const placeholder = config.placeholder ? config.placeholder(object) : undefined;
+    const resolvedConfig: ResolvedFormInputConfig = {
+      ...config,
+      displayName: resolveFormText(config.displayName, object),
+      description: resolveFormText(config.description, object)
+    };
 
     const footer =
       key === 'demoEnabled' && object.demoEnabled ? (
@@ -59,7 +64,7 @@ export const Form = ({ schema, object, onChange }: Props) => {
       <FormInput
         key={key}
         propName={key}
-        config={config}
+        config={resolvedConfig}
         value={value}
         max={max}
         placeholder={placeholder}

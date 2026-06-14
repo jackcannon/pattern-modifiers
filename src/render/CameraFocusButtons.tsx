@@ -1,5 +1,6 @@
 import AdjustIcon from '@mui/icons-material/Adjust';
 import CropFreeIcon from '@mui/icons-material/CropFree';
+import GrainIcon from '@mui/icons-material/Grain';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import { IconButton, Tooltip } from '@mui/material';
 
@@ -8,11 +9,12 @@ import { CameraTarget } from './CameraController';
 interface Props {
   demoEnabled: boolean;
   height: number;
+  modelHeight: number;
   demoSize: number;
   onFocus: (target: CameraTarget) => void;
 }
 
-export const CameraFocusButtons = ({ demoEnabled, height, demoSize, onFocus }: Props) => {
+export const CameraFocusButtons = ({ demoEnabled, height, modelHeight, demoSize, onFocus }: Props) => {
   return (
     <div className="render-focus-controls">
       <Tooltip title="Centre on build volume" arrow placement="left">
@@ -35,7 +37,7 @@ export const CameraFocusButtons = ({ demoEnabled, height, demoSize, onFocus }: P
           <AdjustIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      {demoEnabled && (
+      {demoEnabled ? (
         <Tooltip title="Centre on demo model" arrow placement="left">
           <IconButton
             size="small"
@@ -44,6 +46,17 @@ export const CameraFocusButtons = ({ demoEnabled, height, demoSize, onFocus }: P
             onClick={() => onFocus([0, 0, demoSize / 2])}
           >
             <ViewInArIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ) : (
+        <Tooltip title="Centre on pattern modifier" arrow placement="left">
+          <IconButton
+            size="small"
+            aria-label="Centre on pattern modifier"
+            className="render-focus-button"
+            onClick={() => onFocus([0, 0, modelHeight / 2])}
+          >
+            <GrainIcon fontSize="small" />
           </IconButton>
         </Tooltip>
       )}

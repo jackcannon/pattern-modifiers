@@ -10,9 +10,6 @@ export const worleyPattern: PatternDefinition = {
   label: 'Worley',
   category: 'cellular',
   sectionTitle: 'Worley noise',
-  defaultFieldValues: {
-    scale: 25
-  },
   fieldKeys: [...CELL_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale];

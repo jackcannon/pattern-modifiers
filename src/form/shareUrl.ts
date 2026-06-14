@@ -1,16 +1,36 @@
-import { formConfig, FormObject, FormPropName, getShareParamName, isFieldActive, PatternType } from './schema';
+import { formConfig, FormObject, FormPropName, isFieldActive, PatternType } from './schema';
+
+/** Previous per-pattern URL param names. Still accepted when loading share links */
+const LEGACY_PARAM_ALIASES: Record<string, FormPropName> = {
+  per_s: 'seed',
+  sim_s: 'seed',
+  rid_s: 'seed',
+  wor_s: 'seed',
+  vor_s: 'seed',
+  per_sc: 'scale',
+  sim_sc: 'scale',
+  rid_sc: 'scale',
+  wor_sc: 'scale',
+  vor_sc: 'scale',
+  per_oc: 'octaves',
+  sim_oc: 'octaves',
+  rid_oc: 'octaves',
+  per_p: 'persistence',
+  sim_p: 'persistence',
+  rid_p: 'persistence',
+  gyr_p: 'period',
+  gyr_ph: 'phase',
+  wav_wl: 'wavelength',
+  wav_a: 'amplitude',
+  lat_sp: 'strutSpacing',
+  lat_r: 'strutRadius'
+};
 
 const buildParamNameDictionary = () => {
-  const dict: Record<string, FormPropName> = {};
+  const dict: Record<string, FormPropName> = { ...LEGACY_PARAM_ALIASES };
 
   for (const [key, config] of Object.entries(formConfig) as [FormPropName, (typeof formConfig)[FormPropName]][]) {
     dict[config.paramName] = key;
-
-    if (config.paramNameByPattern) {
-      for (const paramName of Object.values(config.paramNameByPattern)) {
-        if (paramName) dict[paramName] = key;
-      }
-    }
   }
 
   return dict;
@@ -18,8 +38,7 @@ const buildParamNameDictionary = () => {
 
 const paramNameDictionary = buildParamNameDictionary();
 
-export const isFieldIncludedInShare = (key: FormPropName, form: FormObject): boolean =>
-  isFieldActive(formConfig[key], form);
+export const isFieldIncludedInShare = (key: FormPropName, form: FormObject): boolean => isFieldActive(key, form);
 
 export const queryToForm = (query: string, defaultValues: FormObject): FormObject => {
   const params = Object.fromEntries(new URLSearchParams(query));
@@ -36,10 +55,7 @@ export const queryToForm = (query: string, defaultValues: FormObject): FormObjec
     if (!key) continue;
 
     const config = formConfig[key];
-    if (!isFieldActive(config, result)) continue;
-
-    const expectedParam = getShareParamName(key, result.type);
-    if (config.paramNameByPattern && paramName !== expectedParam && paramName !== config.paramName) continue;
+    if (!isFieldActive(key, result)) continue;
 
     let parsedValue: unknown = value;
     if (['number', 'slider'].includes(config.type)) {
@@ -70,14 +86,13 @@ export const formToQuery = (form: FormObject): string => {
     if (!isFieldIncludedInShare(propName, form)) continue;
 
     const config = formConfig[propName];
-    const paramName = getShareParamName(propName, form.type);
 
     let valueStr = value.toString();
     if (['switch', 'boolean'].includes(config.type)) {
       valueStr = value ? '1' : '0';
     }
 
-    params.set(paramName, valueStr);
+    params.set(config.paramName, valueStr);
   }
 
   return params.toString();

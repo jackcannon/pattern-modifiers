@@ -23,8 +23,6 @@ export interface PatternDefinition {
   label: string;
   category: PatternCategory;
   sectionTitle: string;
-  /** Suggested starting values when this pattern is selected */
-  defaultFieldValues: Partial<FormObject>;
   /** Form field keys shown when this pattern is active */
   fieldKeys: (keyof FormObject)[];
   cacheKeyParts(form: FormObject): (string | number)[];

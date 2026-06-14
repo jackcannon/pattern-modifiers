@@ -32,6 +32,7 @@ export const SceneRender = ({ style, form }: Props) => {
       <CameraFocusButtons
         demoEnabled={form.demoEnabled}
         height={viewHeight}
+        modelHeight={form.height}
         demoSize={form.demoSize}
         onFocus={setCameraTarget}
       />

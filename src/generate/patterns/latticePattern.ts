@@ -13,10 +13,6 @@ export const latticePattern: PatternDefinition = {
   label: 'Lattice',
   category: 'other',
   sectionTitle: 'Strut lattice',
-  defaultFieldValues: {
-    strutSpacing: 20,
-    strutRadius: 2.5
-  },
   fieldKeys: [...LATTICE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.strutSpacing, form.strutRadius];

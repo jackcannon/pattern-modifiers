@@ -28,6 +28,11 @@ export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fr
 
 export const getPatternDefinition = (type: PatternType): PatternDefinition => patternRegistry[type];
 
+/** All form fields owned by one or more patterns (not global fields like threshold) */
+export const PATTERN_FIELD_KEYS = new Set<keyof FormObject>(
+  PATTERN_DEFINITIONS.flatMap((def) => def.fieldKeys)
+);
+
 const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
   noise: 'Noise',
   cellular: 'Cellular',
@@ -45,8 +50,3 @@ export const PATTERN_TYPE_OPTION_GROUPS = PATTERN_CATEGORY_ORDER.map((category) 
   }))
 })).filter((group) => group.options.length > 0);
 
-export const applyPatternDefaults = (form: FormObject, type: PatternType): FormObject => ({
-  ...form,
-  type,
-  ...getPatternDefinition(type).defaultFieldValues
-});

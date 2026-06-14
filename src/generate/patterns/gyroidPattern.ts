@@ -8,10 +8,6 @@ export const gyroidPattern: PatternDefinition = {
   label: 'Gyroid',
   category: 'surfaces',
   sectionTitle: 'Gyroid surface',
-  defaultFieldValues: {
-    period: 25,
-    phase: 0
-  },
   fieldKeys: [...GYROID_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.period, form.phase];

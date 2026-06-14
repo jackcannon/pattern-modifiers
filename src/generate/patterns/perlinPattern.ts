@@ -14,11 +14,6 @@ export const perlinPattern: PatternDefinition = {
   label: 'Perlin',
   category: 'noise',
   sectionTitle: 'Perlin noise',
-  defaultFieldValues: {
-    scale: 10,
-    octaves: 2,
-    persistence: 0.15
-  },
   fieldKeys: [...NOISE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale, form.octaves, form.persistence];

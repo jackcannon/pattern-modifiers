@@ -8,10 +8,6 @@ export const wavesPattern: PatternDefinition = {
   label: 'Waves',
   category: 'surfaces',
   sectionTitle: 'Wave bands',
-  defaultFieldValues: {
-    wavelength: 50,
-    amplitude: 0.35
-  },
   fieldKeys: [...WAVES_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.wavelength, form.amplitude];

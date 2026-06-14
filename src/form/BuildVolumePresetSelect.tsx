@@ -34,7 +34,7 @@ export const BuildVolumePresetSelect = ({ object, onChange }: Props) => {
       <Grid2 sx={{ width: '100%' }}>
         <Typography variant="body2" id="input-build-volume-preset">
           Printer{' '}
-          <Tooltip title="Build plate size shown in the 3D preview — model dimensions are set separately" arrow>
+          <Tooltip title="Build plate size shown in the 3D preview. Model dimensions are set separately." arrow>
             <HelpIcon
               sx={{
                 fontSize: '1.2em',

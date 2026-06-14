@@ -1,9 +1,8 @@
 import { PerlinNoise3D } from '../perlin';
 
 import type { FormObject } from '../../form/schema';
+import { NOISE_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition, PatternSampleContext } from './types';
-
-const NOISE_FIELD_KEYS = ['scale', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];
 
 interface NoiseContext extends PatternSampleContext {
   noise: PerlinNoise3D;
@@ -13,7 +12,7 @@ export const ridgedPattern: PatternDefinition = {
   type: 'ridged',
   label: 'Ridged',
   category: 'noise',
-  sectionTitle: 'Ridged noise',
+  formSections: [{ title: 'Noise', fields: [...NOISE_FIELD_KEYS] }],
   fieldKeys: [...NOISE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale, form.octaves, form.persistence];

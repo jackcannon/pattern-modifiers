@@ -1,13 +1,12 @@
 import type { FormObject } from '../../form/schema';
+import { GYROID_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition } from './types';
-
-const GYROID_FIELD_KEYS = ['period', 'phase'] as const satisfies readonly (keyof FormObject)[];
 
 export const gyroidPattern: PatternDefinition = {
   type: 'gyroid',
   label: 'Gyroid',
   category: 'surfaces',
-  sectionTitle: 'Gyroid surface',
+  formSections: [{ title: 'Gyroid', fields: [...GYROID_FIELD_KEYS] }],
   fieldKeys: [...GYROID_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.period, form.phase];

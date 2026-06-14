@@ -160,7 +160,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'th',
     type: 'slider',
     displayName: 'Threshold',
-    description: 'Cutoff percentile for the pattern — with Inverse off, the lowest values up to this point are solid; with Inverse on, the highest values from this point upward are solid',
+    description:
+      'Cutoff percentile for the pattern. With Inverse off, the lowest values up to this point are solid. With Inverse on, the highest values from this point upward are solid',
     defaultValue: 50,
     unit: '%',
     sliderStep: 1,
@@ -173,7 +174,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'inv',
     type: 'boolean',
     displayName: 'Inverse',
-    description: 'Flip which side of the threshold is solid — off keeps the lowest values (0% to threshold), on keeps the highest (threshold to 100%)',
+    description:
+      'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
     show: (form) => form.type !== 'topographical'
   },
@@ -181,7 +183,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 's',
     type: 'number',
     displayName: 'Seed',
-    description: 'Random seed for the pattern — same seed always produces the same result',
+    description: 'Random seed for the pattern. The same seed always produces the same result',
     defaultValue: 0,
     inputStep: 1,
     randomize: () => Math.floor(Math.random() * 1000000)
@@ -192,8 +194,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     displayName: (form) => (form.type === 'worley' || form.type === 'voronoi' ? 'Cell Size' : 'Feature Size'),
     description: (form) =>
       form.type === 'worley' || form.type === 'voronoi'
-        ? 'Size of each cell — larger values produce bigger cells'
-        : 'Size of pattern features — larger values produce bigger, smoother shapes',
+        ? 'Size of each cell. Larger values produce bigger cells'
+        : 'Size of pattern features. Larger values produce bigger, smoother shapes',
     defaultValue: 10,
     unit: 'mm',
     sliderStep: 1,
@@ -205,7 +207,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'oc',
     type: 'slider',
     displayName: 'Octaves',
-    description: 'Number of noise layers — more octaves add finer detail on top of the base pattern',
+    description: 'Number of noise layers. More octaves add finer detail on top of the base pattern',
     defaultValue: 2,
     sliderStep: 1,
     inputStep: 1,
@@ -216,7 +218,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'pers',
     type: 'slider',
     displayName: 'Persistence',
-    description: 'How strongly each extra octave contributes — higher values make fine detail more prominent',
+    description: 'How strongly each extra octave contributes. Higher values make fine detail more prominent',
     defaultValue: 0.15,
     sliderStep: 0.05,
     inputStep: 0.05,
@@ -264,7 +266,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'amp',
     type: 'slider',
     displayName: 'Amplitude',
-    description: 'Strength of the wave bands — higher values create stronger contrast',
+    description: 'Strength of the wave bands. Higher values create stronger contrast',
     defaultValue: 0.35,
     sliderStep: 0.05,
     inputStep: 0.05,
@@ -299,7 +301,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'tls',
     type: 'slider',
     displayName: 'Line Spacing',
-    description: 'Interval between topographical lines as a percentage of the noise value range — smaller values pack in more lines',
+    description:
+      'Interval between topographical lines as a percentage of the noise value range. Smaller values pack in more lines',
     defaultValue: 10,
     unit: '%',
     sliderStep: 1,
@@ -311,7 +314,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'tlt',
     type: 'slider',
     displayName: 'Line Thickness',
-    description: 'Width of each topographical line — uniform everywhere, measured in millimetres',
+    description: 'Width of each topographical line. Uniform everywhere, measured in millimetres',
     defaultValue: 1.5,
     unit: 'mm',
     sliderStep: 0.5,
@@ -324,7 +327,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'pr',
     type: 'slider',
     displayName: 'Preview Resolution',
-    description: 'Mesh detail for the 3D preview — number of grid cells along the longest axis',
+    description: 'Mesh detail for the 3D preview. Number of grid cells along the longest axis',
     warning: 'High values can make the preview slow to update',
     defaultValue: 72,
     sliderStep: 8,
@@ -336,7 +339,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'er',
     type: 'slider',
     displayName: 'Export Resolution',
-    description: 'Mesh detail for the exported STL — number of grid cells along the longest axis',
+    description: 'Mesh detail for the exported STL. Number of grid cells along the longest axis',
     warning: 'High values can make export slow and produce large files',
     defaultValue: 192,
     sliderStep: 8,
@@ -384,7 +387,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'dr',
     type: 'slider',
     displayName: 'Demo Resolution',
-    description: 'Pattern detail used for demo clipping — grid cells along the longest axis',
+    description: 'Pattern detail used for demo clipping. Grid cells along the longest axis',
     warning: 'Higher values improve demo quality but slow down updates',
     defaultValue: 36,
     sliderStep: 4,
@@ -397,7 +400,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'fn',
     type: 'text',
     displayName: 'File Name',
-    description: 'Name of the downloaded STL file — leave blank to use the auto-generated name',
+    description: 'Name of the downloaded STL file. Leave blank to use the auto-generated name',
     defaultValue: '',
     unit: '.stl',
     placeholder: (form) => getDefaultFileName(form)
@@ -418,11 +421,13 @@ export const formGroups: FormGroupDef[] = [
   ['buildVolumePreset'],
   ['width', 'depth', 'height'],
   ['threshold', 'thresholdInverse'],
-  ...PATTERN_DEFINITIONS.map((def) => ({
-    patternId: def.type,
-    title: def.sectionTitle,
-    fields: def.fieldKeys
-  })),
+  ...PATTERN_DEFINITIONS.flatMap((def) =>
+    def.formSections.map((section) => ({
+      patternId: def.type,
+      title: section.title,
+      fields: section.fields
+    }))
+  ),
   ['demoEnabled', 'demoModel', 'demoSize', 'demoResolution'],
   ['previewResolution', 'exportResolution'],
   ['fileName']

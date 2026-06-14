@@ -2,6 +2,7 @@ import { SimplexNoise3D } from '../simplex';
 import { CORNERS, EDGE_TABLE, EDGES, GridSpec, TRI_TABLE } from '../marchingCubes';
 import type { FormObject } from '../../form/schema';
 
+import { NOISE_FIELD_KEYS, TOPOGRAPHICAL_FIELD_KEYS } from './fieldKeys';
 import type { ClipFieldSpec, PatternDefinition, PatternSampleContext } from './types';
 
 // Flattened marching-cubes corner/edge tables for fast indexing in the hot loop.
@@ -10,8 +11,6 @@ const CORNER_Y = new Int8Array(CORNERS.map((c) => c[1]));
 const CORNER_Z = new Int8Array(CORNERS.map((c) => c[2]));
 const EDGE_A = new Int8Array(EDGES.map((e) => e[0]));
 const EDGE_B = new Int8Array(EDGES.map((e) => e[1]));
-
-const TOPOGRAPHICAL_FIELD_KEYS = ['scale', 'lineSpacing', 'lineThickness', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];
 
 /** Resolution of the value -> nearest-line-distance lookup table */
 const LUT_BINS = 2048;
@@ -411,8 +410,11 @@ export const topographicalPattern: PatternDefinition = {
   type: 'topographical',
   label: 'Topographical',
   category: 'other',
-  sectionTitle: 'Topographical lines',
-  fieldKeys: [...TOPOGRAPHICAL_FIELD_KEYS],
+  formSections: [
+    { title: 'Noise', fields: [...NOISE_FIELD_KEYS] },
+    { title: 'Topographical', fields: [...TOPOGRAPHICAL_FIELD_KEYS] }
+  ],
+  fieldKeys: [...NOISE_FIELD_KEYS, ...TOPOGRAPHICAL_FIELD_KEYS],
   fieldDefaults: {
     scale: 60,
     octaves: 1,

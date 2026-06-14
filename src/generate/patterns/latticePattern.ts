@@ -1,7 +1,6 @@
 import type { FormObject } from '../../form/schema';
+import { LATTICE_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition } from './types';
-
-const LATTICE_FIELD_KEYS = ['strutSpacing', 'strutRadius'] as const satisfies readonly (keyof FormObject)[];
 
 const rodDistance = (coord: number, spacing: number) => {
   const cell = Math.round(coord / spacing) * spacing;
@@ -12,7 +11,7 @@ export const latticePattern: PatternDefinition = {
   type: 'lattice',
   label: 'Lattice',
   category: 'other',
-  sectionTitle: 'Strut lattice',
+  formSections: [{ title: 'Lattice', fields: [...LATTICE_FIELD_KEYS] }],
   fieldKeys: [...LATTICE_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.strutSpacing, form.strutRadius];

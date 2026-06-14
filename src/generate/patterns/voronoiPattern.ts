@@ -1,16 +1,15 @@
 import { voronoiF2MinusF1 } from '../worley';
 
 import type { FormObject } from '../../form/schema';
+import { CELLULAR_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition } from './types';
-
-const CELL_FIELD_KEYS = ['scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
 export const voronoiPattern: PatternDefinition = {
   type: 'voronoi',
   label: 'Voronoi',
   category: 'cellular',
-  sectionTitle: 'Voronoi noise',
-  fieldKeys: [...CELL_FIELD_KEYS],
+  formSections: [{ title: 'Cellular', fields: [...CELLULAR_FIELD_KEYS] }],
+  fieldKeys: [...CELLULAR_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale];
   },

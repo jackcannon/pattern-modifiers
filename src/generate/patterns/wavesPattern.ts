@@ -1,13 +1,12 @@
 import type { FormObject } from '../../form/schema';
+import { WAVES_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition } from './types';
-
-const WAVES_FIELD_KEYS = ['wavelength', 'amplitude'] as const satisfies readonly (keyof FormObject)[];
 
 export const wavesPattern: PatternDefinition = {
   type: 'waves',
   label: 'Waves',
   category: 'surfaces',
-  sectionTitle: 'Wave bands',
+  formSections: [{ title: 'Waves', fields: [...WAVES_FIELD_KEYS] }],
   fieldKeys: [...WAVES_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.wavelength, form.amplitude];

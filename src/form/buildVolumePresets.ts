@@ -60,7 +60,7 @@ export const BUILD_VOLUME_PRESET_GROUPS: BuildVolumePresetGroup[] = [
 const presetVolume = (preset: BuildVolumePreset) => preset.width * preset.depth * preset.height;
 
 export const formatBuildVolumePresetLabel = (preset: BuildVolumePreset) =>
-  `${preset.name} — ${preset.width} × ${preset.depth} × ${preset.height} mm`;
+  `${preset.name} (${preset.width} × ${preset.depth} × ${preset.height} mm)`;
 
 export const BUILD_VOLUME_PRESET_GROUPS_SORTED: BuildVolumePresetGroup[] = BUILD_VOLUME_PRESET_GROUPS.map((group) => ({
   ...group,

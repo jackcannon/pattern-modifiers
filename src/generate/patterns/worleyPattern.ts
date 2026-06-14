@@ -1,16 +1,15 @@
 import { worleyF1 } from '../worley';
 
 import type { FormObject } from '../../form/schema';
+import { CELLULAR_FIELD_KEYS } from './fieldKeys';
 import type { PatternDefinition } from './types';
-
-const CELL_FIELD_KEYS = ['scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
 export const worleyPattern: PatternDefinition = {
   type: 'worley',
   label: 'Worley',
   category: 'cellular',
-  sectionTitle: 'Worley noise',
-  fieldKeys: [...CELL_FIELD_KEYS],
+  formSections: [{ title: 'Cellular', fields: [...CELLULAR_FIELD_KEYS] }],
+  fieldKeys: [...CELLULAR_FIELD_KEYS],
   cacheKeyParts(form) {
     return [form.seed, form.scale];
   },

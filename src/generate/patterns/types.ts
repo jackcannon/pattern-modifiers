@@ -34,12 +34,18 @@ export interface ClipFieldSpec {
   maxCellSize: number;
 }
 
+export interface PatternFormSection {
+  title: string;
+  fields: (keyof FormObject)[];
+}
+
 export interface PatternDefinition {
   type: PatternType;
   label: string;
   category: PatternCategory;
-  sectionTitle: string;
-  /** Form field keys shown when this pattern is active */
+  /** Sidebar sections for this pattern (shared groups like Noise, then pattern-specific fields) */
+  formSections: PatternFormSection[];
+  /** All form field keys shown when this pattern is active */
   fieldKeys: (keyof FormObject)[];
   /**
    * Field values applied when the user switches to this pattern, overriding whatever the shared fields

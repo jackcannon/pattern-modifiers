@@ -1,37 +1,10 @@
 import { formConfig, FormObject, FormPropName, isFieldActive, PatternType } from './schema';
 
-/** Previous per-pattern URL param names. Still accepted when loading share links */
-const LEGACY_PARAM_ALIASES: Record<string, FormPropName> = {
-  per_s: 'seed',
-  sim_s: 'seed',
-  rid_s: 'seed',
-  wor_s: 'seed',
-  vor_s: 'seed',
-  per_sc: 'scale',
-  sim_sc: 'scale',
-  rid_sc: 'scale',
-  wor_sc: 'scale',
-  vor_sc: 'scale',
-  per_oc: 'octaves',
-  sim_oc: 'octaves',
-  rid_oc: 'octaves',
-  per_p: 'persistence',
-  sim_p: 'persistence',
-  rid_p: 'persistence',
-  gyr_p: 'period',
-  gyr_ph: 'phase',
-  wav_wl: 'wavelength',
-  wav_a: 'amplitude',
-  lat_sp: 'strutSpacing',
-  lat_r: 'strutRadius',
-  cls: 'lineSpacing',
-  clt: 'lineThickness'
-};
+/** Previous param names. Add entries here when renaming share URL params */
+const LEGACY_PARAM_ALIASES: Record<string, FormPropName> = {};
 
-/** Previous pattern type values. Still accepted when loading share links */
-const LEGACY_PATTERN_TYPES: Record<string, PatternType> = {
-  contour: 'topographical'
-};
+/** Previous pattern type values. Add entries here when renaming pattern types */
+const LEGACY_PATTERN_TYPES: Record<string, PatternType> = {};
 
 const buildParamNameDictionary = () => {
   const dict: Record<string, FormPropName> = { ...LEGACY_PARAM_ALIASES };

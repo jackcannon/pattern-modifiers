@@ -13,3 +13,5 @@ export const WAVES_FIELD_KEYS = ['wavelength', 'amplitude'] as const satisfies r
 export const LATTICE_FIELD_KEYS = ['strutSpacing', 'strutRadius'] as const satisfies readonly (keyof FormObject)[];
 
 export const MARBLE_FIELD_KEYS = ['veinSpacing', 'swirl', 'scale', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];
+
+export const KINTSUGI_FIELD_KEYS = ['crackWidth', 'crackJaggedness', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];

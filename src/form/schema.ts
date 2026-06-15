@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const FormSchema = z.object({
@@ -31,6 +31,8 @@ export const FormSchema = z.object({
   strutRadius: z.number().min(0.1),
   veinSpacing: z.number().min(2).max(200),
   swirl: z.number().min(0).max(4),
+  crackWidth: z.number().min(0.5).max(15),
+  crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
   lineThickness: z.number().min(0.5).max(20),
 
@@ -94,13 +96,14 @@ export const getDefaultFileName = (form: FormObject) => {
 
   if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
+  else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
 
   if (form.type === 'topographical') {
     parts.push(`tp${form.lineSpacing}-${form.lineThickness}mm`);
-  } else {
+  } else if (form.type !== 'kintsugi') {
     parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
   }
   return parts.join('-');
@@ -171,7 +174,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -180,7 +183,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi'
   },
   seed: {
     paramName: 's',
@@ -194,9 +197,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   scale: {
     paramName: 'sc',
     type: 'slider',
-    displayName: (form) => (form.type === 'worley' || form.type === 'voronoi' ? 'Cell Size' : 'Feature Size'),
+    displayName: (form) =>
+      form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi' ? 'Cell Size' : 'Feature Size',
     description: (form) =>
-      form.type === 'worley' || form.type === 'voronoi'
+      form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
         ? 'Size of each cell. Larger values produce bigger cells'
         : 'Size of pattern features. Larger values produce bigger, smoother shapes',
     defaultValue: 10,
@@ -322,6 +326,30 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 0,
     max: 4
+  },
+  crackWidth: {
+    paramName: 'kcw',
+    type: 'slider',
+    displayName: 'Crack Width',
+    description: 'Thickness of each crack line. Larger values make bolder, heavier cracks',
+    defaultValue: 1,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0.5,
+    max: 15
+  },
+  crackJaggedness: {
+    paramName: 'kcj',
+    type: 'slider',
+    displayName: 'Jaggedness',
+    description: 'How rough and organic the crack edges are. Higher values add wandering, hand-drawn distortion',
+    defaultValue: 1,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0,
+    max: 15
   },
   lineSpacing: {
     paramName: 'tls',

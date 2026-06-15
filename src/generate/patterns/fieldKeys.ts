@@ -15,3 +15,15 @@ export const LATTICE_FIELD_KEYS = ['strutSpacing', 'strutRadius'] as const satis
 export const MARBLE_FIELD_KEYS = ['veinSpacing', 'swirl', 'scale', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];
 
 export const KINTSUGI_FIELD_KEYS = ['crackWidth', 'crackJaggedness', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
+
+export const WOODGRAIN_FIELD_KEYS = [
+  'ringSpacing',
+  'grainWaviness',
+  'grainAxis',
+  'knotCount',
+  'knotSize',
+  'scale',
+  'seed',
+  'octaves',
+  'persistence'
+] as const satisfies readonly (keyof FormObject)[];

@@ -8,8 +8,11 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
+
+export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
+export type GrainAxis = z.infer<typeof GrainAxisSchema>;
 
 export const FormSchema = z.object({
   type: PatternTypeSchema,
@@ -35,6 +38,11 @@ export const FormSchema = z.object({
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
   lineThickness: z.number().min(0.5).max(20),
+  ringSpacing: z.number().min(1).max(60),
+  grainWaviness: z.number().min(0).max(4),
+  grainAxis: GrainAxisSchema,
+  knotCount: z.number().int().min(0).max(24),
+  knotSize: z.number().min(1).max(80),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -97,6 +105,7 @@ export const getDefaultFileName = (form: FormObject) => {
   if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
+  else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
@@ -375,6 +384,66 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.25,
     min: 0.5,
     max: 20
+  },
+  ringSpacing: {
+    paramName: 'wrs',
+    type: 'slider',
+    displayName: 'Ring Spacing',
+    description: 'Distance between growth rings. Smaller values pack in more, finer rings',
+    defaultValue: 8,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 1,
+    max: 60
+  },
+  grainWaviness: {
+    paramName: 'wwv',
+    type: 'slider',
+    displayName: 'Grain Waviness',
+    description: 'How much the rings wander and flow. Higher values create stronger cathedral arches along the grain',
+    defaultValue: 0.6,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 4
+  },
+  grainAxis: {
+    paramName: 'wax',
+    type: 'select',
+    displayName: 'Grain Direction',
+    description:
+      'Axis the log runs along. The two faces perpendicular to it show end grain (concentric rings), the other four show flowing grain',
+    defaultValue: 'z',
+    options: [
+      { value: 'x', label: 'X (Width)' },
+      { value: 'y', label: 'Y (Depth)' },
+      { value: 'z', label: 'Z (Height)' }
+    ]
+  },
+  knotCount: {
+    paramName: 'wkn',
+    type: 'slider',
+    displayName: 'Knot Count',
+    description: 'Number of knots scattered through the wood. Rings deflect and form eyes around each knot',
+    defaultValue: 4,
+    sliderStep: 1,
+    inputStep: 1,
+    min: 0,
+    max: 24
+  },
+  knotSize: {
+    paramName: 'wks',
+    type: 'slider',
+    displayName: 'Knot Size',
+    description: 'How large each knot and its surrounding ring disturbance is',
+    defaultValue: 13,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.5,
+    min: 1,
+    max: 80,
+    show: (form) => form.knotCount > 0
   },
 
   previewResolution: {

@@ -7,6 +7,7 @@ import { gyroidPattern } from './gyroidPattern';
 import { wavesPattern } from './wavesPattern';
 import { marblePattern } from './marblePattern';
 import { kintsugiPattern } from './kintsugiPattern';
+import { woodgrainPattern } from './woodgrainPattern';
 import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 
@@ -25,6 +26,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   topographicalPattern,
   marblePattern,
   kintsugiPattern,
+  woodgrainPattern,
   latticePattern
 ];
 

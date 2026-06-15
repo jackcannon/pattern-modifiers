@@ -5,6 +5,7 @@ import { voronoiPattern } from './voronoiPattern';
 import { ridgedPattern } from './ridgedPattern';
 import { gyroidPattern } from './gyroidPattern';
 import { wavesPattern } from './wavesPattern';
+import { marblePattern } from './marblePattern';
 import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 
@@ -21,6 +22,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   gyroidPattern,
   wavesPattern,
   topographicalPattern,
+  marblePattern,
   latticePattern
 ];
 
@@ -36,13 +38,14 @@ export const PATTERN_FIELD_KEYS = new Set<keyof FormObject>(
 );
 
 const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
+  effects: 'Effects',
   noise: 'Noise',
   cellular: 'Cellular',
   surfaces: 'Surfaces',
   other: 'Other'
 };
 
-const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['noise', 'cellular', 'surfaces', 'other'];
+const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'cellular', 'surfaces', 'other'];
 
 export const PATTERN_TYPE_OPTION_GROUPS = PATTERN_CATEGORY_ORDER.map((category) => ({
   label: PATTERN_CATEGORY_LABELS[category],

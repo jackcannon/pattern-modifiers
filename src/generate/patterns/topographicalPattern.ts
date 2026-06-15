@@ -409,10 +409,10 @@ export const createTopographicalClipField = (form: FormObject, resolution: numbe
 export const topographicalPattern: PatternDefinition = {
   type: 'topographical',
   label: 'Topographical',
-  category: 'other',
+  category: 'effects',
   formSections: [
-    { title: 'Noise', fields: [...NOISE_FIELD_KEYS] },
-    { title: 'Topographical', fields: [...TOPOGRAPHICAL_FIELD_KEYS] }
+    { title: 'Topographical', fields: [...TOPOGRAPHICAL_FIELD_KEYS] },
+    { title: 'Noise', fields: [...NOISE_FIELD_KEYS] }
   ],
   fieldKeys: [...NOISE_FIELD_KEYS, ...TOPOGRAPHICAL_FIELD_KEYS],
   fieldDefaults: {

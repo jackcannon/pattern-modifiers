@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const FormSchema = z.object({
@@ -29,6 +29,8 @@ export const FormSchema = z.object({
   amplitude: z.number().min(0.01).max(1),
   strutSpacing: z.number().min(1),
   strutRadius: z.number().min(0.1),
+  veinSpacing: z.number().min(2).max(200),
+  swirl: z.number().min(0).max(4),
   lineSpacing: z.number().min(1).max(50),
   lineThickness: z.number().min(0.5).max(20),
 
@@ -91,6 +93,7 @@ export const getDefaultFileName = (form: FormObject) => {
   const patternFields = getPatternDefinition(form.type).fieldKeys;
 
   if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
+  if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
@@ -112,7 +115,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     type: 'select',
     displayName: 'Pattern',
     description: 'Type of pattern to generate',
-    defaultValue: 'perlin',
+    defaultValue: 'topographical',
     optionGroups: PATTERN_TYPE_OPTION_GROUPS
   },
   buildVolumePreset: {
@@ -297,6 +300,29 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 0.1,
     max: 50
   },
+  veinSpacing: {
+    paramName: 'mvs',
+    type: 'slider',
+    displayName: 'Vein Spacing',
+    description: 'Distance between marble veins. Smaller values pack the swirls in more tightly',
+    defaultValue: 16,
+    unit: 'mm',
+    sliderStep: 1,
+    inputStep: 0.5,
+    min: 2,
+    max: 200
+  },
+  swirl: {
+    paramName: 'msw',
+    type: 'slider',
+    displayName: 'Swirl',
+    description: 'How strongly the veins fold and flow. Higher values create more turbulent, liquid-marble curls',
+    defaultValue: 1.5,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 4
+  },
   lineSpacing: {
     paramName: 'tls',
     type: 'slider',
@@ -375,7 +401,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     type: 'slider',
     displayName: 'Demo Size (Height)',
     description: 'Height of the demo model in millimetres',
-    defaultValue: 50,
+    defaultValue: 150,
     unit: 'mm',
     sliderStep: 1,
     inputStep: 1,
@@ -435,6 +461,7 @@ export const formGroups: FormGroupDef[] = [
 
 export const createDefaultFormObj = (): FormObject => {
   const obj = Object.fromEntries(Object.entries(formConfig).map(([key, value]) => [key, value.defaultValue])) as FormObject;
+  Object.assign(obj, getPatternDefinition(obj.type).fieldDefaults);
   obj.seed = formConfig.seed.randomize!();
   return obj;
 };

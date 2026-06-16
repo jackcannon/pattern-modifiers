@@ -409,6 +409,7 @@ export const createTopographicalClipField = (form: FormObject, resolution: numbe
 export const topographicalPattern: PatternDefinition = {
   type: 'topographical',
   label: 'Topographical',
+  description: 'Map-like contour lines at fixed thickness, traced from noise height across the volume.',
   category: 'effects',
   formSections: [
     { title: 'Topographical', fields: [...TOPOGRAPHICAL_FIELD_KEYS] },

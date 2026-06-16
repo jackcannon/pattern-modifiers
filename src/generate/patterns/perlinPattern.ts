@@ -11,6 +11,7 @@ interface NoiseContext extends PatternSampleContext {
 export const perlinPattern: PatternDefinition = {
   type: 'perlin',
   label: 'Perlin',
+  description: 'Smooth organic blobs from classic Perlin noise. Use threshold to control how much of the volume is solid.',
   category: 'noise',
   formSections: [{ title: 'Noise', fields: [...NOISE_FIELD_KEYS] }],
   fieldKeys: [...NOISE_FIELD_KEYS],

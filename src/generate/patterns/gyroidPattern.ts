@@ -5,6 +5,7 @@ import type { PatternDefinition } from './types';
 export const gyroidPattern: PatternDefinition = {
   type: 'gyroid',
   label: 'Gyroid',
+  description: 'Triply periodic minimal surface with continuous lattice-like channels woven through the volume.',
   category: 'surfaces',
   formSections: [{ title: 'Gyroid', fields: [...GYROID_FIELD_KEYS] }],
   fieldKeys: [...GYROID_FIELD_KEYS],

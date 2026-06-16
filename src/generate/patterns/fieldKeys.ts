@@ -16,6 +16,18 @@ export const MARBLE_FIELD_KEYS = ['veinSpacing', 'swirl', 'scale', 'seed', 'octa
 
 export const KINTSUGI_FIELD_KEYS = ['crackWidth', 'crackJaggedness', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
+export const HALFTONE_FIELD_KEYS = [
+  'halftoneNoise',
+  'dotSpacing',
+  'dotMinSizePct',
+  'dotMaxSizePct',
+  'mergeSmoothnessPct',
+  'scale',
+  'seed',
+  'octaves',
+  'persistence'
+] as const satisfies readonly (keyof FormObject)[];
+
 export const WOODGRAIN_FIELD_KEYS = [
   'ringSpacing',
   'grainWaviness',

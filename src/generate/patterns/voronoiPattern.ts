@@ -7,6 +7,7 @@ import type { PatternDefinition } from './types';
 export const voronoiPattern: PatternDefinition = {
   type: 'voronoi',
   label: 'Voronoi',
+  description: 'Solid cell walls between Voronoi regions, forming a network of thin seams through the volume.',
   category: 'cellular',
   formSections: [{ title: 'Cellular', fields: [...CELLULAR_FIELD_KEYS] }],
   fieldKeys: [...CELLULAR_FIELD_KEYS],

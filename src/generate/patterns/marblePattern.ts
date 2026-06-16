@@ -40,6 +40,7 @@ const DIR_Z = 0.24;
 export const marblePattern: PatternDefinition = {
   type: 'marble',
   label: 'Marble',
+  description: 'Flowing veined stone bands with domain-warped noise.',
   category: 'effects',
   formSections: [
     { title: 'Marble', fields: ['veinSpacing', 'swirl'] },

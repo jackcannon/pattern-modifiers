@@ -42,6 +42,8 @@ export interface PatternFormSection {
 export interface PatternDefinition {
   type: PatternType;
   label: string;
+  /** Short user-facing summary shown under the pattern selector */
+  description: string;
   category: PatternCategory;
   /** Sidebar sections for this pattern (shared groups like Noise, then pattern-specific fields) */
   formSections: PatternFormSection[];
@@ -67,6 +69,11 @@ export interface PatternDefinition {
    * the shared single-isosurface marching-cubes path. Returns a flat triangle-soup position buffer.
    */
   buildGeometry?(form: FormObject, resolution: number): Float32Array;
+  /**
+   * Optional fast grid builder. When present, {@link buildPatternGrid} delegates here instead of the generic
+   * per-voxel sample loop (useful for patterns with expensive fields).
+   */
+  buildPatternGrid?(form: FormObject, resolution: number): import('../patternField').PatternGridContext;
   /**
    * Optional analytic clip field for demo mode. When present, demo clipping uses this exact field rather than
    * sampling the voxel grid. Needed for patterns with sub-voxel features.

@@ -10,6 +10,7 @@ import { kintsugiPattern } from './kintsugiPattern';
 import { woodgrainPattern } from './woodgrainPattern';
 import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
+import { halftonePattern } from './halftonePattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -27,6 +28,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   marblePattern,
   kintsugiPattern,
   woodgrainPattern,
+  halftonePattern,
   latticePattern
 ];
 

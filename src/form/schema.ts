@@ -8,11 +8,14 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
 export type GrainAxis = z.infer<typeof GrainAxisSchema>;
+
+export const HalftoneNoiseTypeSchema = z.enum(['perlin', 'simplex', 'ridged']);
+export type HalftoneNoiseType = z.infer<typeof HalftoneNoiseTypeSchema>;
 
 export const FormSchema = z.object({
   type: PatternTypeSchema,
@@ -43,6 +46,11 @@ export const FormSchema = z.object({
   grainAxis: GrainAxisSchema,
   knotCount: z.number().int().min(0).max(24),
   knotSize: z.number().min(1).max(80),
+  dotSpacing: z.number().min(1),
+  halftoneNoise: HalftoneNoiseTypeSchema,
+  dotMinSizePct: z.number().min(0.1).max(80),
+  dotMaxSizePct: z.number().min(0.1).max(120),
+  mergeSmoothnessPct: z.number().min(0).max(80),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -106,6 +114,7 @@ export const getDefaultFileName = (form: FormObject) => {
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
+  else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
@@ -183,7 +192,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -192,7 +201,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone'
   },
   seed: {
     paramName: 's',
@@ -410,7 +419,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   },
   grainAxis: {
     paramName: 'wax',
-    type: 'select',
+    type: 'toggle_button',
     displayName: 'Grain Direction',
     description:
       'Axis the log runs along. The two faces perpendicular to it show end grain (concentric rings), the other four show flowing grain',
@@ -444,6 +453,69 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 1,
     max: 80,
     show: (form) => form.knotCount > 0
+  },
+  dotSpacing: {
+    paramName: 'dsp',
+    type: 'slider',
+    displayName: 'Dot Spacing',
+    description: 'Distance between sphere centres on the grid. Smaller values pack in more dots',
+    defaultValue: 7,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 1,
+    max: 60
+  },
+  halftoneNoise: {
+    paramName: 'htn',
+    type: 'toggle_button',
+    displayName: 'Noise Type',
+    description: 'Underlying noise pattern that drives dot size variation across the volume',
+    defaultValue: 'perlin',
+    options: [
+      { value: 'perlin', label: 'Perlin' },
+      { value: 'simplex', label: 'Simplex' },
+      { value: 'ridged', label: 'Ridged' }
+    ]
+  },
+  dotMinSizePct: {
+    paramName: 'dmnp',
+    type: 'slider',
+    displayName: 'Min Dot Size',
+    description: (form) =>
+      `Radius of the smallest dots as a percentage of Dot Spacing (${((form.dotSpacing * form.dotMinSizePct) / 100).toFixed(2)} mm at current spacing)`,
+    defaultValue: 5,
+    unit: '%',
+    sliderStep: 0.5,
+    inputStep: 0.1,
+    min: 0.1,
+    max: 80
+  },
+  dotMaxSizePct: {
+    paramName: 'dmxp',
+    type: 'slider',
+    displayName: 'Max Dot Size',
+    description: (form) =>
+      `Radius of the largest dots as a percentage of Dot Spacing (${((form.dotSpacing * form.dotMaxSizePct) / 100).toFixed(2)} mm at current spacing). Dots merge when radii overlap neighbours`,
+    defaultValue: 65,
+    unit: '%',
+    sliderStep: 0.5,
+    inputStep: 0.1,
+    min: 1,
+    max: 120
+  },
+  mergeSmoothnessPct: {
+    paramName: 'mrgp',
+    type: 'slider',
+    displayName: 'Merge Smoothness',
+    description: (form) =>
+      `Blend radius when dots touch, as a percentage of Dot Spacing (${((form.dotSpacing * form.mergeSmoothnessPct) / 100).toFixed(2)} mm at current spacing)`,
+    defaultValue: 30,
+    unit: '%',
+    sliderStep: 0.5,
+    inputStep: 0.1,
+    min: 0,
+    max: 80
   },
 
   previewResolution: {

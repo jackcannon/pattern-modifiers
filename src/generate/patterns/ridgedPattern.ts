@@ -11,6 +11,7 @@ interface NoiseContext extends PatternSampleContext {
 export const ridgedPattern: PatternDefinition = {
   type: 'ridged',
   label: 'Ridged',
+  description: 'Sharp ridges and valleys from inverted Perlin noise. Good for mountain-like or crackled textures.',
   category: 'noise',
   formSections: [{ title: 'Noise', fields: [...NOISE_FIELD_KEYS] }],
   fieldKeys: [...NOISE_FIELD_KEYS],

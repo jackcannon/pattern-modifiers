@@ -10,6 +10,7 @@ const rodDistance = (coord: number, spacing: number) => {
 export const latticePattern: PatternDefinition = {
   type: 'lattice',
   label: 'Lattice',
+  description: 'Simple cubic strut scaffold with rods at regular spacing along each axis.',
   category: 'other',
   formSections: [{ title: 'Lattice', fields: [...LATTICE_FIELD_KEYS] }],
   fieldKeys: [...LATTICE_FIELD_KEYS],

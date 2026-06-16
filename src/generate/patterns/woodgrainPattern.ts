@@ -164,6 +164,7 @@ const buildContext = (form: FormObject): WoodgrainContext => {
 export const woodgrainPattern: PatternDefinition = {
   type: 'woodgrain',
   label: 'Woodgrain',
+  description: 'Concentric growth rings with optional knots, oriented along a chosen axis.',
   category: 'effects',
   formSections: [
     { title: 'Woodgrain', fields: ['ringSpacing', 'grainWaviness', 'grainAxis', 'knotCount', 'knotSize'] },

@@ -72,8 +72,12 @@ export interface PatternField {
  * @returns {PatternGridContext} field samples and metadata
  */
 export const buildPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
-  const { width, height, depth, threshold } = form;
   const pattern = getPatternDefinition(form.type);
+  if (pattern.buildPatternGrid) {
+    return pattern.buildPatternGrid(form, resolution);
+  }
+
+  const { width, height, depth, threshold } = form;
   const context = pattern.createContext(form);
 
   const outerW = width;

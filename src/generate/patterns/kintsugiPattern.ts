@@ -89,6 +89,7 @@ const createKintsugiClipField = (form: FormObject, _resolution: number): ClipFie
 export const kintsugiPattern: PatternDefinition = {
   type: 'kintsugi',
   label: 'Kintsugi',
+  description: 'Thin solid cracks along warped Voronoi cell edges, like repaired pottery seams.',
   category: 'effects',
   formSections: [
     { title: 'Kintsugi', fields: ['crackWidth', 'crackJaggedness'] },

@@ -5,6 +5,7 @@ import type { PatternDefinition } from './types';
 export const wavesPattern: PatternDefinition = {
   type: 'waves',
   label: 'Waves',
+  description: 'Layered sine-wave surfaces stacked through the volume.',
   category: 'surfaces',
   formSections: [{ title: 'Waves', fields: [...WAVES_FIELD_KEYS] }],
   fieldKeys: [...WAVES_FIELD_KEYS],

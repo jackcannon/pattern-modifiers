@@ -11,6 +11,7 @@ interface NoiseContext extends PatternSampleContext {
 export const simplexPattern: PatternDefinition = {
   type: 'simplex',
   label: 'Simplex',
+  description: 'Organic noise similar to Perlin, with cleaner gradients and fewer directional artifacts.',
   category: 'noise',
   formSections: [{ title: 'Noise', fields: [...NOISE_FIELD_KEYS] }],
   fieldKeys: [...NOISE_FIELD_KEYS],

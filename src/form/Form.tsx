@@ -61,6 +61,10 @@ export const Form = ({ schema, object, onChange }: Props) => {
         <Typography component="p" variant="body2" className="form-section-note">
           {demoModeSectionNote}
         </Typography>
+      ) : key === 'type' ? (
+        <Typography component="p" variant="body2" className="form-pattern-description">
+          {getPatternDefinition(object.type).description}
+        </Typography>
       ) : undefined;
 
     return (

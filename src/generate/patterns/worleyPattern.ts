@@ -7,6 +7,7 @@ import type { PatternDefinition } from './types';
 export const worleyPattern: PatternDefinition = {
   type: 'worley',
   label: 'Worley',
+  description: 'Cellular blobs from distance to scattered feature points. Creates pebble-like or foamy regions.',
   category: 'cellular',
   formSections: [{ title: 'Cellular', fields: [...CELLULAR_FIELD_KEYS] }],
   fieldKeys: [...CELLULAR_FIELD_KEYS],

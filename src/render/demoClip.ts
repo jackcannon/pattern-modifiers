@@ -15,6 +15,11 @@ export interface DemoClipReuse {
 
 const EDGE_KEY_SCALE = 2_097_152;
 
+/** Subdivision above this triangle count freezes or OOMs the browser tab. */
+const MAX_PREPARED_DEMO_TRIANGLES = 220_000;
+const MAX_SUBDIVISION_VERTICES = 350_000;
+const MAX_SUBDIVISION_INDICES = MAX_PREPARED_DEMO_TRIANGLES * 3;
+
 const edgeKey = (a: number, b: number) =>
   a < b ? a * EDGE_KEY_SCALE + b : b * EDGE_KEY_SCALE + a;
 
@@ -462,6 +467,14 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
 
     if (edgesToSplit.size === 0) break;
 
+    if (
+      vertexCount > MAX_SUBDIVISION_VERTICES ||
+      indexCount > MAX_SUBDIVISION_INDICES ||
+      vertexCount + edgesToSplit.size > MAX_SUBDIVISION_VERTICES
+    ) {
+      break;
+    }
+
     const edgeMid = new Map<number, number>();
     const newVertexCount = vertexCount + edgesToSplit.size;
     const expanded = new Float32Array(newVertexCount * 3);
@@ -576,6 +589,16 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
   return result;
 };
 
+const refineDemoEdgeLimit = (sourceTriangles: number, maxCellSize: number): number => {
+  let edgeLimit = maxCellSize;
+
+  if (sourceTriangles > 10_000) {
+    edgeLimit *= Math.sqrt(sourceTriangles / 10_000);
+  }
+
+  return edgeLimit;
+};
+
 /**
  * Merges vertices and subdivides long edges so clipping stays watertight at the field resolution.
  *
@@ -584,14 +607,25 @@ export const subdivideLongEdges = (geometry: BufferGeometry, maxEdgeLength: numb
  * @returns {BufferGeometry} prepared mesh (caller owns disposal)
  */
 export const getPreparedDemoMesh = (demoGeometry: BufferGeometry, maxCellSize: number): BufferGeometry => {
-  if (demoGeometry.getIndex()) {
-    return subdivideLongEdges(demoGeometry, maxCellSize);
+  const merged = demoGeometry.getIndex() ? null : mergeVertices(demoGeometry.clone());
+  const source = merged ?? demoGeometry;
+  const sourceTriangles = source.getIndex()!.count / 3;
+
+  let edgeLimit = refineDemoEdgeLimit(sourceTriangles, maxCellSize);
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const prepared = subdivideLongEdges(source, edgeLimit);
+    if (prepared.getIndex()!.count / 3 <= MAX_PREPARED_DEMO_TRIANGLES) {
+      merged?.dispose();
+      return prepared;
+    }
+    prepared.dispose();
+    edgeLimit *= 1.35;
   }
 
-  const merged = mergeVertices(demoGeometry.clone());
-  const subdivided = subdivideLongEdges(merged, maxCellSize);
-  merged.dispose();
-  return subdivided;
+  const prepared = subdivideLongEdges(source, edgeLimit);
+  merged?.dispose();
+  return prepared;
 };
 
 /**

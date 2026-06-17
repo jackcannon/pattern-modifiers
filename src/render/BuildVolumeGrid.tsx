@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
-import { BufferAttribute, BufferGeometry } from 'three';
+import { useMemo, useRef } from 'react';
+import { BufferAttribute, BufferGeometry, LineBasicMaterial } from 'three';
+
+import { useHideWhenViewedFromBelow } from './useHideWhenViewedFromBelow';
 
 const GRID_DIVISIONS = 20;
 
@@ -32,11 +34,14 @@ interface Props {
 }
 
 export const BuildVolumeGrid = ({ width, depth }: Props) => {
+  const materialRef = useRef<LineBasicMaterial>(null);
   const geometry = useMemo(() => createRectGrid(width, depth), [width, depth]);
+
+  useHideWhenViewedFromBelow(materialRef, 0.85);
 
   return (
     <lineSegments geometry={geometry} renderOrder={0}>
-      <lineBasicMaterial color="#666666" transparent opacity={0.85} depthWrite={false} />
+      <lineBasicMaterial ref={materialRef} color="#666666" transparent opacity={0.85} depthWrite={false} />
     </lineSegments>
   );
 };

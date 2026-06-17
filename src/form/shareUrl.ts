@@ -94,6 +94,13 @@ export const hasShareQuery = (search: string): boolean => {
   return false;
 };
 
+export const hasResetQuery = (search: string): boolean => {
+  if (!search || search === '?') return false;
+
+  const value = new URLSearchParams(search).get('reset');
+  return value === 'true' || value === '1';
+};
+
 export const stripQueryFromUrl = () => {
   window.history.replaceState(window.history.state, '', window.location.pathname);
 };

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# High-poly Benchy source kept locally for scripts/simplify-benchy.ts
+public/models/benchy-source.stl

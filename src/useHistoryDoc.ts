@@ -1,14 +1,16 @@
 import { ZodSchema } from 'zod';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 
 import { FormObject } from './form/schema';
-import { hasShareQuery, queryToForm, stripQueryFromUrl } from './form/shareUrl';
+import { hasResetQuery, hasShareQuery, queryToForm, stripQueryFromUrl } from './form/shareUrl';
 
 const STORAGE_KEY = 'pattern-modifiers-form';
+const SAVE_DEBOUNCE_MS = 1000;
 
 interface InitialState {
   form: FormObject;
-  consumedShareQuery: boolean;
+  stripQueryOnMount: boolean;
 }
 
 const loadFromStorage = (schema: ZodSchema): FormObject | null => {
@@ -41,24 +43,29 @@ const clearStorage = () => {
 const initialise = (schema: ZodSchema, getDefaultForm: () => FormObject): InitialState => {
   const defaults = schema.parse(getDefaultForm()) as FormObject;
 
+  if (hasResetQuery(window.location.search)) {
+    clearStorage();
+    return { form: defaults, stripQueryOnMount: true };
+  }
+
   if (hasShareQuery(window.location.search)) {
     try {
       const parsed = queryToForm(window.location.search, defaults);
       const form = schema.parse(parsed) as FormObject;
       saveToStorage(form);
-      return { form, consumedShareQuery: true };
+      return { form, stripQueryOnMount: true };
     } catch (e) {
       console.log('error parsing share query', e);
-      return { form: defaults, consumedShareQuery: false };
+      return { form: defaults, stripQueryOnMount: false };
     }
   }
 
   const stored = loadFromStorage(schema);
   if (stored) {
-    return { form: stored, consumedShareQuery: false };
+    return { form: stored, stripQueryOnMount: false };
   }
 
-  return { form: defaults, consumedShareQuery: false };
+  return { form: defaults, stripQueryOnMount: false };
 };
 
 export const useHistoryDoc = (
@@ -67,20 +74,32 @@ export const useHistoryDoc = (
 ): [FormObject, (form: FormObject) => void, () => void] => {
   const [initial] = useState(() => initialise(schema, getDefaultForm));
   const [form, setForm] = useState<FormObject>(initial.form);
+  const skipNextSaveRef = useRef(false);
+
+  const debouncedSave = useDebouncedCallback((value: FormObject) => {
+    saveToStorage(value);
+  }, SAVE_DEBOUNCE_MS);
 
   useEffect(() => {
-    if (initial.consumedShareQuery) stripQueryFromUrl();
-  }, [initial.consumedShareQuery]);
+    if (initial.stripQueryOnMount) stripQueryFromUrl();
+  }, [initial.stripQueryOnMount]);
 
   useEffect(() => {
-    saveToStorage(form);
-  }, [form]);
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+
+    debouncedSave(form);
+  }, [form, debouncedSave]);
 
   const resetForm = useCallback(() => {
+    debouncedSave.cancel();
     const defaults = schema.parse(getDefaultForm()) as FormObject;
     clearStorage();
+    skipNextSaveRef.current = true;
     setForm(defaults);
-  }, [schema, getDefaultForm]);
+  }, [schema, getDefaultForm, debouncedSave]);
 
   return [form, setForm, resetForm];
 };

@@ -64,16 +64,37 @@ const DemoModelInner = ({
   patternField,
   externalSource
 }: Props & { externalSource?: BufferGeometry }) => {
+  const [preparedMesh, setPreparedMesh] = useState<BufferGeometry | null>(null);
   const [clipResult, setClipResult] = useState<DemoClipResult | null>(null);
   const reuseRef = useRef<DemoClipReuse>({ inside: null, outside: null });
 
-  const preparedMesh = useMemo(
-    () =>
-      getCachedPreparedDemoMesh(form.demoModel, form.demoSize, patternField.maxCellSize, externalSource),
-    [form.demoModel, form.demoSize, patternField.maxCellSize, externalSource]
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    try {
+      const prepared = getCachedPreparedDemoMesh(
+        form.demoModel,
+        form.demoSize,
+        patternField.maxCellSize,
+        externalSource
+      );
+      if (!cancelled) setPreparedMesh(prepared);
+    } catch (error) {
+      console.error('Demo mesh preparation failed:', error);
+      if (!cancelled) setPreparedMesh(null);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.demoModel, form.demoSize, patternField.maxCellSize, externalSource]);
 
   useEffect(() => {
+    if (!preparedMesh) {
+      setClipResult(null);
+      return;
+    }
+
     try {
       const clipped = clipPreparedDemoMesh(preparedMesh, patternField, reuseRef.current);
       reuseRef.current = clipped;

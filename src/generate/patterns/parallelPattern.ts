@@ -1,48 +1,46 @@
 import { marchingCubes } from '../marchingCubes';
 
 import type { FormObject } from '../../form/schema';
-import { CROSSHATCH_FIELD_KEYS } from './fieldKeys';
+import { PARALLEL_FIELD_KEYS } from './fieldKeys';
 import { createHalftoneNoiseSource } from './halftoneNoise';
 import {
-  buildCrosshatchFillCtx,
   buildHatchNoiseState,
   buildHatchPlaneCoeffs,
-  fillCrosshatchVolume,
+  buildParallelFillCtx,
+  fillParallelVolume,
   HATCH_LINE_ISO,
   hatchClipMaxCell,
   hatchLineBounds,
   hatchLineSizesFromForm,
   makeHatchGridSpec,
-  sampleCrosshatchSdf,
-  type CrosshatchFillCtx
+  sampleParallelHatchSdf,
+  type ParallelFillCtx
 } from './hatchLineField';
 import { type ClipFieldSpec, type PatternDefinition, type PatternSampleContext } from './types';
 
 import type { PatternGridContext } from '../patternField';
 
-interface CrosshatchContext extends PatternSampleContext, CrosshatchFillCtx {}
+interface ParallelContext extends PatternSampleContext, ParallelFillCtx {}
 
-const buildContext = (form: FormObject): CrosshatchContext => {
+const buildContext = (form: FormObject): ParallelContext => {
   const noise = createHalftoneNoiseSource(form.halftoneNoise, form.seed);
   const sizes = hatchLineSizesFromForm(form);
-  const plane1 = buildHatchPlaneCoeffs(-1, 1, 0.32, 0);
-  const plane2 = buildHatchPlaneCoeffs(1, 1, 0.32, 17.9);
-  const state = buildHatchNoiseState(noise, form, 0.12);
+  const plane = buildHatchPlaneCoeffs(-1, 1, 0.32, 0);
+  const state = buildHatchNoiseState(noise, form, 0.1);
 
   return {
-    ...buildCrosshatchFillCtx(state, sizes, plane1, plane2, form.hatchCrossStart),
+    ...buildParallelFillCtx(state, sizes, plane),
     state,
     sizes,
-    plane1,
-    plane2
+    plane
   };
 };
 
-const buildCrosshatchPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
+const buildParallelPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
   const ctx = buildContext(form);
   const grid = makeHatchGridSpec(form, resolution);
   const field = new Float32Array(grid.nx * grid.ny * grid.nz);
-  fillCrosshatchVolume(ctx, grid, field, false);
+  fillParallelVolume(ctx, grid, field, false);
 
   return {
     field,
@@ -54,12 +52,12 @@ const buildCrosshatchPatternGrid = (form: FormObject, resolution: number): Patte
   };
 };
 
-const createCrosshatchClipField = (form: FormObject): ClipFieldSpec => {
+const createParallelClipField = (form: FormObject): ClipFieldSpec => {
   const ctx = buildContext(form);
   const maxWidth = (form.hatchSpacing / 100) * form.hatchMaxWidthPct;
 
   return {
-    sample: (x, y, z) => sampleCrosshatchSdf(ctx, x, y, z),
+    sample: (x, y, z) => sampleParallelHatchSdf(ctx, x, y, z),
     iso: HATCH_LINE_ISO,
     solidHigh: false,
     bounds: hatchLineBounds(form),
@@ -67,36 +65,28 @@ const createCrosshatchClipField = (form: FormObject): ClipFieldSpec => {
   };
 };
 
-export const crosshatchPattern: PatternDefinition = {
-  type: 'crosshatch',
-  label: 'Cross-hatch',
+export const parallelPattern: PatternDefinition = {
+  type: 'parallel',
+  label: 'Parallel Lines',
   description:
-    'Two sets of diagonal hatch lines crossing through the volume. Stroke weight and cross-hatch density follow a noise field.',
+    'Parallel hatch lines through the volume. Line weight follows a noise field like a newspaper line screen.',
   category: 'shading',
   formSections: [
     {
-      title: 'Cross-hatch',
-      fields: [
-        'halftoneNoise',
-        'hatchSpacing',
-        'hatchMinWidthPct',
-        'hatchMaxWidthPct',
-        'hatchCrossStart',
-        'mergeSmoothnessPct'
-      ]
+      title: 'Parallel Lines',
+      fields: ['halftoneNoise', 'hatchSpacing', 'hatchMinWidthPct', 'hatchMaxWidthPct', 'mergeSmoothnessPct']
     },
     { title: 'Noise', fields: ['scale', 'seed', 'octaves', 'persistence'] }
   ],
-  fieldKeys: [...CROSSHATCH_FIELD_KEYS],
+  fieldKeys: [...PARALLEL_FIELD_KEYS],
   fixedIso: HATCH_LINE_ISO,
   fieldDefaults: {
     halftoneNoise: 'perlin',
-    hatchSpacing: 6,
+    hatchSpacing: 5,
     hatchMinWidthPct: 1,
     hatchMaxWidthPct: 40,
-    hatchCrossStart: 35,
-    mergeSmoothnessPct: 1,
-    scale: 65,
+    mergeSmoothnessPct: 8,
+    scale: 70,
     octaves: 2,
     persistence: 0.5,
     demoResolution: 80
@@ -111,7 +101,6 @@ export const crosshatchPattern: PatternDefinition = {
       form.hatchSpacing,
       form.hatchMinWidthPct,
       form.hatchMaxWidthPct,
-      form.hatchCrossStart,
       form.mergeSmoothnessPct
     ];
   },
@@ -119,19 +108,19 @@ export const crosshatchPattern: PatternDefinition = {
     return buildContext(form);
   },
   sample(_form, x, y, z, context) {
-    return sampleCrosshatchSdf(context as CrosshatchContext, x, y, z);
+    return sampleParallelHatchSdf(context as ParallelContext, x, y, z);
   },
   buildPatternGrid(form, resolution) {
-    return buildCrosshatchPatternGrid(form, resolution);
+    return buildParallelPatternGrid(form, resolution);
   },
   buildGeometry(form, resolution) {
     const ctx = buildContext(form);
     const grid = makeHatchGridSpec(form, resolution);
     const mcField = new Float32Array(grid.nx * grid.ny * grid.nz);
-    fillCrosshatchVolume(ctx, grid, mcField, true);
+    fillParallelVolume(ctx, grid, mcField, true);
     return marchingCubes(mcField, grid, HATCH_LINE_ISO, true);
   },
   createClipField(form) {
-    return createCrosshatchClipField(form);
+    return createParallelClipField(form);
   }
 };

@@ -12,6 +12,7 @@ import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 import { halftonePattern } from './halftonePattern';
 import { crosshatchPattern } from './crosshatchPattern';
+import { parallelPattern } from './parallelPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -30,6 +31,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   kintsugiPattern,
   woodgrainPattern,
   crosshatchPattern,
+  parallelPattern,
   halftonePattern,
   latticePattern
 ];

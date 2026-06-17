@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'crosshatch', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'crosshatch', 'parallel', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -120,6 +120,7 @@ export const getDefaultFileName = (form: FormObject) => {
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
   else if (form.type === 'crosshatch') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
+  else if (form.type === 'parallel') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
@@ -197,7 +198,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch' && form.type !== 'parallel'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -206,7 +207,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch' && form.type !== 'parallel'
   },
   seed: {
     paramName: 's',
@@ -475,10 +476,15 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'htn',
     type: 'toggle_button',
     displayName: 'Noise Type',
-    description: (form) =>
-      form.type === 'crosshatch'
-        ? 'Underlying noise pattern that drives hatch line weight and cross-hatch density'
-        : 'Underlying noise pattern that drives dot size variation across the volume',
+    description: (form) => {
+      if (form.type === 'crosshatch') {
+        return 'Underlying noise pattern that drives hatch line weight and cross-hatch density';
+      }
+      if (form.type === 'parallel') {
+        return 'Underlying noise pattern that drives line weight variation across the volume';
+      }
+      return 'Underlying noise pattern that drives dot size variation across the volume';
+    },
     defaultValue: 'perlin',
     options: [
       { value: 'perlin', label: 'Perlin' },
@@ -517,8 +523,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     type: 'slider',
     displayName: 'Merge Smoothness',
     description: (form) => {
-      const spacing = form.type === 'crosshatch' ? form.hatchSpacing : form.dotSpacing;
-      const label = form.type === 'crosshatch' ? 'Hatch Spacing' : 'Dot Spacing';
+      const spacing =
+        form.type === 'crosshatch' || form.type === 'parallel' ? form.hatchSpacing : form.dotSpacing;
+      const label =
+        form.type === 'crosshatch' || form.type === 'parallel' ? 'Line Spacing' : 'Dot Spacing';
       return `Blend radius when strokes touch, as a percentage of ${label} (${((spacing * form.mergeSmoothnessPct) / 100).toFixed(2)} mm at current spacing)`;
     },
     defaultValue: 30,

@@ -43,6 +43,18 @@ export const CROSSHATCH_FIELD_KEYS = [
   'persistence'
 ] as const satisfies readonly (keyof FormObject)[];
 
+export const PARALLEL_FIELD_KEYS = [
+  'halftoneNoise',
+  'hatchSpacing',
+  'hatchMinWidthPct',
+  'hatchMaxWidthPct',
+  'mergeSmoothnessPct',
+  'scale',
+  'seed',
+  'octaves',
+  'persistence'
+] as const satisfies readonly (keyof FormObject)[];
+
 export const WOODGRAIN_FIELD_KEYS = [
   'ringSpacing',
   'grainWaviness',

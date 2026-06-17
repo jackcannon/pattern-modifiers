@@ -16,11 +16,26 @@ export const MARBLE_FIELD_KEYS = ['veinSpacing', 'swirl', 'scale', 'seed', 'octa
 
 export const KINTSUGI_FIELD_KEYS = ['crackWidth', 'crackJaggedness', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
+export const SHADING_NOISE_FIELD_KEYS = ['halftoneNoise', 'scale', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];
+
 export const HALFTONE_FIELD_KEYS = [
   'halftoneNoise',
   'dotSpacing',
   'dotMinSizePct',
   'dotMaxSizePct',
+  'mergeSmoothnessPct',
+  'scale',
+  'seed',
+  'octaves',
+  'persistence'
+] as const satisfies readonly (keyof FormObject)[];
+
+export const CROSSHATCH_FIELD_KEYS = [
+  'halftoneNoise',
+  'hatchSpacing',
+  'hatchMinWidthPct',
+  'hatchMaxWidthPct',
+  'hatchCrossStart',
   'mergeSmoothnessPct',
   'scale',
   'seed',

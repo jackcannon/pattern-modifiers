@@ -445,7 +445,7 @@ export const halftonePattern: PatternDefinition = {
   type: 'halftone',
   label: 'Halftone',
   description: 'Stippled dots of varying size on a 3D grid, merging smoothly where they overlap.',
-  category: 'effects',
+  category: 'shading',
   formSections: [
     { title: 'Halftone', fields: ['halftoneNoise', 'dotSpacing', 'dotMinSizePct', 'dotMaxSizePct', 'mergeSmoothnessPct'] },
     { title: 'Noise', fields: ['scale', 'seed', 'octaves', 'persistence'] }

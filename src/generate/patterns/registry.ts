@@ -11,6 +11,7 @@ import { woodgrainPattern } from './woodgrainPattern';
 import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 import { halftonePattern } from './halftonePattern';
+import { crosshatchPattern } from './crosshatchPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -28,6 +29,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   marblePattern,
   kintsugiPattern,
   woodgrainPattern,
+  crosshatchPattern,
   halftonePattern,
   latticePattern
 ];
@@ -44,6 +46,7 @@ export const PATTERN_FIELD_KEYS = new Set<keyof FormObject>(
 );
 
 const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
+  shading: 'Shading',
   effects: 'Effects',
   noise: 'Noise',
   cellular: 'Cellular',
@@ -51,7 +54,7 @@ const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
   other: 'Other'
 };
 
-const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'cellular', 'surfaces', 'other'];
+const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'shading', 'cellular', 'surfaces', 'other'];
 
 export const PATTERN_TYPE_OPTION_GROUPS = PATTERN_CATEGORY_ORDER.map((category) => ({
   label: PATTERN_CATEGORY_LABELS[category],

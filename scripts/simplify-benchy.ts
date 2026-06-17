@@ -8,8 +8,11 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 const SOURCE_PATH = './public/models/benchy-source.stl';
 const OUTPUT_PATH = './public/models/benchy.stl';
 
-/** Target triangle count for the demo Benchy asset. */
-const TARGET_TRIANGLES = 18_000;
+/** Target triangle count for the demo Benchy asset (~3 MB on disk). */
+const TARGET_TRIANGLES = 29_500;
+
+/** Relative simplification error (fraction of mesh extent). Lower preserves detail. */
+const TARGET_ERROR = 0.0051;
 
 const main = async () => {
   await MeshoptSimplifier.ready;
@@ -26,14 +29,16 @@ const main = async () => {
   const positions = merged.getAttribute('position').array as Float32Array;
   const indices = merged.getIndex()!.array as ArrayLike<number>;
 
-  const [simplifiedIndices] = MeshoptSimplifier.simplifySloppy(
+  const [simplifiedIndices, actualError] = MeshoptSimplifier.simplifySloppy(
     indices,
     positions,
     3,
     null,
     TARGET_TRIANGLES * 3,
-    0.02
+    TARGET_ERROR
   );
+
+  console.log(`Simplification error: ${actualError.toFixed(5)}`);
 
   merged.setIndex(Array.from(simplifiedIndices));
   merged.getAttribute('position').needsUpdate = true;

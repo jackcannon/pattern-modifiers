@@ -23,7 +23,7 @@ const getStyle = (percent: number) => ({
 });
 
 const App = () => {
-  const [form, setForm] = useHistoryDoc(FormSchema, createDefaultFormObj);
+  const [form, setForm, resetForm] = useHistoryDoc(FormSchema, createDefaultFormObj);
 
   const sidebarSize = SIDEBAR_PERCENT;
   const renderSize = 100 - SIDEBAR_PERCENT;
@@ -31,7 +31,7 @@ const App = () => {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <main>
-        <Sidebar form={form} setForm={setForm} style={getStyle(sidebarSize)} />
+        <Sidebar form={form} setForm={setForm} onReset={resetForm} style={getStyle(sidebarSize)} />
         <SceneRender form={form} style={getStyle(renderSize)} />
       </main>
     </ThemeProvider>

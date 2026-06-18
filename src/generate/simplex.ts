@@ -306,6 +306,83 @@ export class SimplexNoise3D {
    * @param {number} persistence - amplitude falloff per octave
    * @returns {number} value in range [0, 1]
    */
+  /** Single-octave FBM value in [0, 1]. Faster than {@link fbm} when octaves is 1. */
+  fbm1(x: number, y: number, z: number): number {
+    return this.noise(x, y, z) * 0.5 + 0.5;
+  }
+
+  /** Single-octave FBM with analytic gradient. Faster than {@link fbmGrad} when octaves is 1. */
+  fbmGrad1(x: number, y: number, z: number): number {
+    const v = this.noiseGrad(x, y, z);
+    this.gradX *= 0.5;
+    this.gradY *= 0.5;
+    this.gradZ *= 0.5;
+    return v * 0.5 + 0.5;
+  }
+
+  /** Two-octave FBM with analytic gradient. Faster than {@link fbmGrad} when octaves is 2. */
+  fbmGrad2(x: number, y: number, z: number, persistence: number): number {
+    const v0 = this.noiseGrad(x, y, z);
+    const g0x = this.gradX;
+    const g0y = this.gradY;
+    const g0z = this.gradZ;
+    const v1 = this.noiseGrad(x * 2, y * 2, z * 2);
+    const amp1 = persistence;
+    const maxAmp = 1 + amp1;
+    const norm = 1 / (maxAmp * 2);
+    this.gradX = (g0x + this.gradX * amp1 * 2) * norm;
+    this.gradY = (g0y + this.gradY * amp1 * 2) * norm;
+    this.gradZ = (g0z + this.gradZ * amp1 * 2) * norm;
+    return (v0 + v1 * amp1) * norm + 0.5;
+  }
+
+  /** Two-octave FBM value in [0, 1]. */
+  fbm2(x: number, y: number, z: number, persistence: number): number {
+    const v0 = this.noise(x, y, z);
+    const v1 = this.noise(x * 2, y * 2, z * 2);
+    const maxAmp = 1 + persistence;
+    return (v0 + v1 * persistence) / maxAmp / 2 + 0.5;
+  }
+
+  /** Four-octave FBM with analytic gradient. */
+  fbmGrad4(x: number, y: number, z: number, persistence: number): number {
+    const v0 = this.noiseGrad(x, y, z);
+    const g0x = this.gradX;
+    const g0y = this.gradY;
+    const g0z = this.gradZ;
+    const v1 = this.noiseGrad(x * 2, y * 2, z * 2);
+    const p = persistence;
+    const p2 = p * p;
+    const p3 = p2 * p;
+    const g1x = this.gradX;
+    const g1y = this.gradY;
+    const g1z = this.gradZ;
+    const v2 = this.noiseGrad(x * 4, y * 4, z * 4);
+    const g2x = this.gradX;
+    const g2y = this.gradY;
+    const g2z = this.gradZ;
+    const v3 = this.noiseGrad(x * 8, y * 8, z * 8);
+    const maxAmp = 1 + p + p2 + p3;
+    const norm = 1 / (maxAmp * 2);
+    this.gradX = (g0x + g1x * p * 2 + g2x * p2 * 4 + this.gradX * p3 * 8) * norm;
+    this.gradY = (g0y + g1y * p * 2 + g2y * p2 * 4 + this.gradY * p3 * 8) * norm;
+    this.gradZ = (g0z + g1z * p * 2 + g2z * p2 * 4 + this.gradZ * p3 * 8) * norm;
+    return (v0 + v1 * p + v2 * p2 + v3 * p3) * norm + 0.5;
+  }
+
+  /** Four-octave FBM value in [0, 1]. */
+  fbm4(x: number, y: number, z: number, persistence: number): number {
+    const v0 = this.noise(x, y, z);
+    const p = persistence;
+    const p2 = p * p;
+    const p3 = p2 * p;
+    const v1 = this.noise(x * 2, y * 2, z * 2);
+    const v2 = this.noise(x * 4, y * 4, z * 4);
+    const v3 = this.noise(x * 8, y * 8, z * 8);
+    const maxAmp = 1 + p + p2 + p3;
+    return (v0 + v1 * p + v2 * p2 + v3 * p3) / maxAmp / 2 + 0.5;
+  }
+
   fbmGrad(x: number, y: number, z: number, octaves: number, persistence: number): number {
     let total = 0;
     let amplitude = 1;

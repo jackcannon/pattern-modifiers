@@ -1,12 +1,24 @@
 import { SimplexNoise3D } from '../simplex';
 import { voronoiF2MinusF1 } from '../worley';
+import { marchingCubes } from '../marchingCubes';
 
 import type { FormObject } from '../../form/schema';
 import { CELLULAR_FIELD_KEYS, KINTSUGI_FIELD_KEYS } from './fieldKeys';
 import type { ClipFieldSpec, PatternDefinition, PatternSampleContext } from './types';
 
+import type { GridSpec } from '../marchingCubes';
+import type { PatternGridContext } from '../patternField';
+import { OUTSIDE_FIELD } from './types';
+
 interface KintsugiContext extends PatternSampleContext {
   noise: SimplexNoise3D;
+  seed: number;
+  invCellSize: number;
+  cellSize: number;
+  crackWidth: number;
+  jag: number;
+  fw: number;
+  jagScale: number;
 }
 
 // The crack boundary always sits at this iso. Crack width is baked into the field instead (see crackValue),
@@ -32,45 +44,117 @@ const WARP_OFF_Z = 8.1;
  * @param {number} jag - warp amplitude (mm) controlling how organic the crack edges are
  * @returns {number} field value where <= {@link CRACK_ISO} is solid crack
  */
-const crackValue = (
-  noise: SimplexNoise3D,
-  seed: number,
-  x: number,
-  y: number,
-  z: number,
-  cellSize: number,
-  crackWidth: number,
-  jag: number
-): number => {
+const crackValueFromContext = (c: KintsugiContext, x: number, y: number, z: number): number => {
+  const { noise, seed, invCellSize, cellSize, crackWidth, jag, fw, jagScale } = c;
   let wx = x;
   let wy = y;
   let wz = z;
 
   if (jag > 0) {
-    // Warp at a fraction of the cell size so the distortion adds sub-cell wander to the crack lines rather
-    // than displacing whole cells, which is what gives the hand-cracked, irregular look of the references.
-    const fw = cellSize * 0.35;
-    const nx = x / fw;
-    const ny = y / fw;
-    const nz = z / fw;
-    wx = x + jag * noise.noise(nx + WARP_OFF_X, ny, nz);
-    wy = y + jag * noise.noise(nx, ny + WARP_OFF_Y, nz);
-    wz = z + jag * noise.noise(nx, ny, nz + WARP_OFF_Z);
+    const nx = x * fw;
+    const ny = y * fw;
+    const nz = z * fw;
+    wx = x + jagScale * noise.noise(nx + WARP_OFF_X, ny, nz);
+    wy = y + jagScale * noise.noise(nx, ny + WARP_OFF_Y, nz);
+    wz = z + jagScale * noise.noise(nx, ny, nz + WARP_OFF_Z);
   }
 
-  // voronoiF2MinusF1 returns min(1, (F2 - F1) * 2) in cell-normalised units; near a boundary it is ~0 and grows
-  // with distance from it. Converting that to a mm distance and dividing by Crack Width makes CRACK_ISO = 0.5
-  // fall exactly at the requested half-width, so Crack Width reads as a real thickness in millimetres.
-  const edge = voronoiF2MinusF1(seed, wx / cellSize, wy / cellSize, wz / cellSize);
+  const edge = voronoiF2MinusF1(seed, wx * invCellSize, wy * invCellSize, wz * invCellSize);
   return Math.min(1, (edge * cellSize) / (4 * crackWidth));
 };
 
-const createKintsugiClipField = (form: FormObject, _resolution: number): ClipFieldSpec => {
-  const noise = new SimplexNoise3D(form.seed);
-  const { scale: cellSize, crackWidth, crackJaggedness: jag, seed } = form;
+const makeKintsugiGrid = (form: FormObject, resolution: number): GridSpec => {
+  const { width, height, depth } = form;
+  const longest = Math.max(width, depth, height);
+  const cellsX = Math.max(2, Math.round((width / longest) * resolution));
+  const cellsY = Math.max(2, Math.round((depth / longest) * resolution));
+  const cellsZ = Math.max(2, Math.round((height / longest) * resolution));
+  const sx = width / cellsX;
+  const sy = depth / cellsY;
+  const sz = height / cellsZ;
 
   return {
-    sample: (x, y, z) => crackValue(noise, seed, x, y, z, cellSize, crackWidth, jag),
+    nx: cellsX + 3,
+    ny: cellsY + 3,
+    nz: cellsZ + 3,
+    x0: -width / 2 - sx,
+    y0: -depth / 2 - sy,
+    z0: -sz,
+    sx,
+    sy,
+    sz
+  };
+};
+
+const fillKintsugiVolume = (ctx: KintsugiContext, grid: GridSpec, out: Float32Array, invertForMc: boolean): void => {
+  const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
+  out.fill(OUTSIDE_FIELD);
+
+  const xEnd = nx - 1;
+  const yEnd = ny - 1;
+  const zEnd = nz - 1;
+  const neg = invertForMc;
+
+  for (let k = 1; k < zEnd; k++) {
+    const z = z0 + k * sz;
+    let rowBase = k * ny * nx;
+    for (let j = 1; j < yEnd; j++) {
+      rowBase += nx;
+      const y = y0 + j * sy;
+      let x = x0 + sx;
+      let idx = rowBase + 1;
+      for (let i = 1; i < xEnd; i++) {
+        const v = crackValueFromContext(ctx, x, y, z);
+        out[idx++] = neg ? CRACK_ISO * 2 - v : v;
+        x += sx;
+      }
+    }
+  }
+};
+
+const buildKintsugiPatternGrid = (form: FormObject, resolution: number): PatternGridContext => {
+  const ctx = createKintsugiContext(form);
+  const grid = makeKintsugiGrid(form, resolution);
+  const field = new Float32Array(grid.nx * grid.ny * grid.nz);
+  fillKintsugiVolume(ctx, grid, field, false);
+
+  return {
+    field,
+    grid,
+    iso: CRACK_ISO,
+    bounds: {
+      minX: -form.width / 2,
+      maxX: form.width / 2,
+      minY: -form.depth / 2,
+      maxY: form.depth / 2,
+      minZ: 0,
+      maxZ: form.height
+    },
+    histogram: new Uint32Array(0),
+    sampleCount: 0
+  };
+};
+
+const createKintsugiContext = (form: FormObject): KintsugiContext => {
+  const cellSize = form.scale;
+  const jag = form.crackJaggedness;
+  return {
+    noise: new SimplexNoise3D(form.seed),
+    seed: form.seed,
+    invCellSize: 1 / cellSize,
+    cellSize,
+    crackWidth: form.crackWidth,
+    jag,
+    fw: jag > 0 ? 1 / (cellSize * 0.35) : 0,
+    jagScale: jag
+  };
+};
+
+const createKintsugiClipField = (form: FormObject, _resolution: number): ClipFieldSpec => {
+  const ctx = createKintsugiContext(form);
+
+  return {
+    sample: (x, y, z) => crackValueFromContext(ctx, x, y, z),
     iso: CRACK_ISO,
     solidHigh: false,
     bounds: {
@@ -82,7 +166,7 @@ const createKintsugiClipField = (form: FormObject, _resolution: number): ClipFie
       maxZ: form.height
     },
     // Keep demo-mesh edges finer than the crack walls so the thin cracks survive the clip.
-    maxCellSize: Math.max(0.6, Math.min(crackWidth, 4))
+    maxCellSize: Math.max(0.6, Math.min(ctx.crackWidth, 4))
   };
 };
 
@@ -109,11 +193,20 @@ export const kintsugiPattern: PatternDefinition = {
     return [form.seed, form.scale, form.crackWidth, form.crackJaggedness];
   },
   createContext(form) {
-    return { noise: new SimplexNoise3D(form.seed) };
+    return createKintsugiContext(form);
   },
   sample(form, x, y, z, context) {
-    const { noise } = context as KintsugiContext;
-    return crackValue(noise, form.seed, x, y, z, form.scale, form.crackWidth, form.crackJaggedness);
+    return crackValueFromContext(context as KintsugiContext, x, y, z);
+  },
+  buildPatternGrid(form, resolution) {
+    return buildKintsugiPatternGrid(form, resolution);
+  },
+  buildGeometry(form, resolution) {
+    const ctx = createKintsugiContext(form);
+    const grid = makeKintsugiGrid(form, resolution);
+    const mcField = new Float32Array(grid.nx * grid.ny * grid.nz);
+    fillKintsugiVolume(ctx, grid, mcField, true);
+    return marchingCubes(mcField, grid, CRACK_ISO, true);
   },
   createClipField(form, resolution) {
     return createKintsugiClipField(form, resolution);

@@ -178,23 +178,35 @@ const sdfLattice = (
   const bx = ix0 * spacing + ox;
   const by = iy0 * spacing + oy;
   const bz = iz0 * spacing + oz;
+  const negSpacing = -spacing;
   let sdf: number | null = null;
   let o = 0;
 
   for (let di = -1; di <= 1; di++) {
+    const offX = di === -1 ? negSpacing : di === 1 ? spacing : 0;
     for (let dj = -1; dj <= 1; dj++) {
+      const offY = dj === -1 ? negSpacing : dj === 1 ? spacing : 0;
       for (let dk = -1; dk <= 1; dk++) {
+        const offZ = dk === -1 ? negSpacing : dk === 1 ? spacing : 0;
         const r = cellRadii[o];
-        const dx0 = x - bx - di * spacing - cellJx[o];
-        const dy0 = y - by - dj * spacing - cellJy[o];
-        const dz0 = z - bz - dk * spacing - cellJz[o];
+        const dx0 = x - bx - offX - cellJx[o];
+        const dy0 = y - by - offY - cellJy[o];
+        const dz0 = z - bz - offZ - cellJz[o];
         o++;
         const distSq = dx0 * dx0 + dy0 * dy0 + dz0 * dz0;
         if (sdf !== null) {
           const bound = sdf + skipMargin + r;
           if (bound > 0 && distSq > bound * bound) continue;
         }
-        const d = Math.sqrt(distSq) - r;
+        let d: number;
+        if (hardMin && sdf !== null) {
+          const thresh = sdf + r;
+          if (thresh > 0 && distSq >= thresh * thresh) continue;
+          d = Math.sqrt(distSq) - r;
+          if (d < sdf) sdf = d;
+          continue;
+        }
+        d = Math.sqrt(distSq) - r;
         if (sdf === null) sdf = d;
         else if (hardMin) {
           if (d < sdf) sdf = d;
@@ -209,42 +221,18 @@ const sdfLattice = (
 };
 
 const sdfAt = (ctx: HalftoneContext, x: number, y: number, z: number): number => {
-  const { halfSpacing, mergeK, hardMin } = ctx;
+  const {
+    halfSpacing, mergeK, hardMin,
+    radiiA, jitterAX, jitterAY, jitterAZ, cellRadiiA, cellJxA, cellJyA, cellJzA, cacheA,
+    radiiB, jitterBX, jitterBY, jitterBZ, cellRadiiB, cellJxB, cellJyB, cellJzB, cacheB
+  } = ctx;
   const sdfA = sdfLattice(
-    ctx,
-    x,
-    y,
-    z,
-    0,
-    0,
-    0,
-    ctx.radiiA,
-    ctx.jitterAX,
-    ctx.jitterAY,
-    ctx.jitterAZ,
-    ctx.cellRadiiA,
-    ctx.cellJxA,
-    ctx.cellJyA,
-    ctx.cellJzA,
-    ctx.cacheA
+    ctx, x, y, z, 0, 0, 0,
+    radiiA, jitterAX, jitterAY, jitterAZ, cellRadiiA, cellJxA, cellJyA, cellJzA, cacheA
   );
   const sdfB = sdfLattice(
-    ctx,
-    x,
-    y,
-    z,
-    halfSpacing,
-    halfSpacing,
-    halfSpacing,
-    ctx.radiiB,
-    ctx.jitterBX,
-    ctx.jitterBY,
-    ctx.jitterBZ,
-    ctx.cellRadiiB,
-    ctx.cellJxB,
-    ctx.cellJyB,
-    ctx.cellJzB,
-    ctx.cacheB
+    ctx, x, y, z, halfSpacing, halfSpacing, halfSpacing,
+    radiiB, jitterBX, jitterBY, jitterBZ, cellRadiiB, cellJxB, cellJyB, cellJzB, cacheB
   );
 
   if (hardMin) return sdfA < sdfB ? sdfA : sdfB;
@@ -382,21 +370,25 @@ const makeGridSpec = (form: FormObject, resolution: number): GridSpec => {
 
 const fillHalftoneVolume = (ctx: HalftoneContext, grid: GridSpec, out: Float32Array, invertForMc: boolean): void => {
   const { nx, ny, nz, x0, y0, z0, sx, sy, sz } = grid;
+  out.fill(OUTSIDE_FIELD);
 
-  let idx = 0;
-  for (let k = 0; k < nz; k++) {
-    const isPadZ = k === 0 || k === nz - 1;
+  const xEnd = nx - 1;
+  const yEnd = ny - 1;
+  const zEnd = nz - 1;
+  const neg = invertForMc;
+
+  for (let k = 1; k < zEnd; k++) {
     const z = z0 + k * sz;
-    for (let j = 0; j < ny; j++) {
-      const isPadY = j === 0 || j === ny - 1;
+    let rowBase = k * ny * nx;
+    for (let j = 1; j < yEnd; j++) {
+      rowBase += nx;
       const y = y0 + j * sy;
-      for (let i = 0; i < nx; i++) {
-        if (isPadZ || isPadY || i === 0 || i === nx - 1) {
-          out[idx++] = OUTSIDE_FIELD;
-          continue;
-        }
-        const v = sdfAt(ctx, x0 + i * sx, y, z);
-        out[idx++] = invertForMc ? -v : v;
+      let x = x0 + sx;
+      let idx = rowBase + 1;
+      for (let i = 1; i < xEnd; i++) {
+        const v = sdfAt(ctx, x, y, z);
+        out[idx++] = neg ? -v : v;
+        x += sx;
       }
     }
   }

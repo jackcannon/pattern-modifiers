@@ -52,7 +52,10 @@ export const createHalftoneNoiseSource = (type: HalftoneNoiseType, seed: number)
         const nx = x * invScale;
         const ny = y * invScale;
         const nz = z * invScale;
-        return octaves <= 1 ? noise.noise(nx, ny, nz) / 2 + 0.5 : noise.fbm(nx, ny, nz, octaves, persistence);
+        if (octaves <= 1) return noise.noise(nx, ny, nz) / 2 + 0.5;
+        if (octaves === 2) return noise.fbm2(nx, ny, nz, persistence);
+        if (octaves === 4) return noise.fbm4(nx, ny, nz, persistence);
+        return noise.fbm(nx, ny, nz, octaves, persistence);
       },
       noise: (x, y, z) => noise.noise(x, y, z)
     };
@@ -71,7 +74,8 @@ export const createHalftoneNoiseSource = (type: HalftoneNoiseType, seed: number)
       const nx = x * invScale;
       const ny = y * invScale;
       const nz = z * invScale;
-      return octaves <= 1 ? noise.noise(nx, ny, nz) / 2 + 0.5 : noise.fbm(nx, ny, nz, octaves, persistence);
+      if (octaves <= 1) return noise.noise(nx, ny, nz) / 2 + 0.5;
+      return noise.fbm(nx, ny, nz, octaves, persistence);
     },
     noise: (x, y, z) => noise.noise(x, y, z)
   };

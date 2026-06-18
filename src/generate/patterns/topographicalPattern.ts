@@ -92,23 +92,61 @@ const createTopographicalContext = (form: FormObject): TopographicalContext => {
   const spanZ = form.height;
 
   const n = DIST_SAMPLES_PER_AXIS;
-  const total = n * n * n;
-  const samples = new Float64Array(total);
-  let idx = 0;
-  for (let i = 0; i < n; i++) {
-    const x = (minX + (spanX * (i + 0.5)) / n) * invScale;
-    for (let j = 0; j < n; j++) {
-      const y = (minY + (spanY * (j + 0.5)) / n) * invScale;
-      for (let k = 0; k < n; k++) {
-        const z = ((spanZ * (k + 0.5)) / n) * invScale;
-        samples[idx++] = noise.fbm(x, y, z, octaves, persistence);
+  let vmin = Infinity;
+  let vmax = -Infinity;
+  if (octaves === 1) {
+    for (let i = 0; i < n; i++) {
+      const x = (minX + (spanX * (i + 0.5)) / n) * invScale;
+      for (let j = 0; j < n; j++) {
+        const y = (minY + (spanY * (j + 0.5)) / n) * invScale;
+        for (let k = 0; k < n; k++) {
+          const z = ((spanZ * (k + 0.5)) / n) * invScale;
+          const v = noise.fbm1(x, y, z);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+      }
+    }
+  } else if (octaves === 2) {
+    for (let i = 0; i < n; i++) {
+      const x = (minX + (spanX * (i + 0.5)) / n) * invScale;
+      for (let j = 0; j < n; j++) {
+        const y = (minY + (spanY * (j + 0.5)) / n) * invScale;
+        for (let k = 0; k < n; k++) {
+          const z = ((spanZ * (k + 0.5)) / n) * invScale;
+          const v = noise.fbm2(x, y, z, persistence);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+      }
+    }
+  } else if (octaves === 4) {
+    for (let i = 0; i < n; i++) {
+      const x = (minX + (spanX * (i + 0.5)) / n) * invScale;
+      for (let j = 0; j < n; j++) {
+        const y = (minY + (spanY * (j + 0.5)) / n) * invScale;
+        for (let k = 0; k < n; k++) {
+          const z = ((spanZ * (k + 0.5)) / n) * invScale;
+          const v = noise.fbm4(x, y, z, persistence);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
+      }
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const x = (minX + (spanX * (i + 0.5)) / n) * invScale;
+      for (let j = 0; j < n; j++) {
+        const y = (minY + (spanY * (j + 0.5)) / n) * invScale;
+        for (let k = 0; k < n; k++) {
+          const z = ((spanZ * (k + 0.5)) / n) * invScale;
+          const v = noise.fbm(x, y, z, octaves, persistence);
+          if (v < vmin) vmin = v;
+          if (v > vmax) vmax = v;
+        }
       }
     }
   }
-  samples.sort();
-
-  const vmin = samples[0];
-  const vmax = samples[total - 1];
   const range = vmax - vmin || 1;
 
   // Evenly spaced levels in noise *value* space (like real topographic elevation intervals).
@@ -170,7 +208,19 @@ const createTopographicalContext = (form: FormObject): TopographicalContext => {
  */
 const topographicalDistance = (c: TopographicalContext, x: number, y: number, z: number): number => {
   const { noise, invScale, octaves, persistence } = c;
-  const n0 = noise.fbmGrad(x * invScale, y * invScale, z * invScale, octaves, persistence);
+  const sx = x * invScale;
+  const sy = y * invScale;
+  const sz = z * invScale;
+  let n0: number;
+  if (octaves === 1) {
+    n0 = noise.fbmGrad1(sx, sy, sz);
+  } else if (octaves === 2) {
+    n0 = noise.fbmGrad2(sx, sy, sz, persistence);
+  } else if (octaves === 4) {
+    n0 = noise.fbmGrad4(sx, sy, sz, persistence);
+  } else {
+    n0 = noise.fbmGrad(sx, sy, sz, octaves, persistence);
+  }
 
   const gx = noise.gradX * invScale;
   const gy = noise.gradY * invScale;
@@ -217,13 +267,13 @@ class PositionBuffer {
     this.ensureSpace(18);
     const d = this.current;
     let o = this.offset;
-    d[o++] = ov1x; d[o++] = ov1y; d[o++] = ov1z;
-    d[o++] = ov2x; d[o++] = ov2y; d[o++] = ov2z;
-    d[o++] = ov3x; d[o++] = ov3y; d[o++] = ov3z;
-    d[o++] = iv1x; d[o++] = iv1y; d[o++] = iv1z;
-    d[o++] = iv3x; d[o++] = iv3y; d[o++] = iv3z;
-    d[o++] = iv2x; d[o++] = iv2y; d[o++] = iv2z;
-    this.offset = o;
+    d[o] = ov1x; d[o + 1] = ov1y; d[o + 2] = ov1z;
+    d[o + 3] = ov2x; d[o + 4] = ov2y; d[o + 5] = ov2z;
+    d[o + 6] = ov3x; d[o + 7] = ov3y; d[o + 8] = ov3z;
+    d[o + 9] = iv1x; d[o + 10] = iv1y; d[o + 11] = iv1z;
+    d[o + 12] = iv3x; d[o + 13] = iv3y; d[o + 14] = iv3z;
+    d[o + 15] = iv2x; d[o + 16] = iv2y; d[o + 17] = iv2z;
+    this.offset = o + 18;
     this.total += 18;
   }
 
@@ -237,13 +287,13 @@ class PositionBuffer {
     this.ensureSpace(18);
     const d = this.current;
     let o = this.offset;
-    d[o++] = ov2x; d[o++] = ov2y; d[o++] = ov2z;
-    d[o++] = ov1x; d[o++] = ov1y; d[o++] = ov1z;
-    d[o++] = iv1x; d[o++] = iv1y; d[o++] = iv1z;
-    d[o++] = ov2x; d[o++] = ov2y; d[o++] = ov2z;
-    d[o++] = iv1x; d[o++] = iv1y; d[o++] = iv1z;
-    d[o++] = iv2x; d[o++] = iv2y; d[o++] = iv2z;
-    this.offset = o;
+    d[o] = ov2x; d[o + 1] = ov2y; d[o + 2] = ov2z;
+    d[o + 3] = ov1x; d[o + 4] = ov1y; d[o + 5] = ov1z;
+    d[o + 6] = iv1x; d[o + 7] = iv1y; d[o + 8] = iv1z;
+    d[o + 9] = ov2x; d[o + 10] = ov2y; d[o + 11] = ov2z;
+    d[o + 12] = iv1x; d[o + 13] = iv1y; d[o + 14] = iv1z;
+    d[o + 15] = iv2x; d[o + 16] = iv2y; d[o + 17] = iv2z;
+    this.offset = o + 18;
     this.total += 18;
   }
 
@@ -327,7 +377,7 @@ const marchAndThickenAllLevels = (
   const patchId31 = new Uint8Array(5);
   const triTable = TRI_TABLE;
   const edgeTable = EDGE_TABLE;
-  const outerEdgeCount = new Map<string, number>();
+  const outerEdgeCount: Record<string, number> = Object.create(null);
 
   const pendingOuterKeys: string[] = new Array(1 << 17);
   const pendingLevelIdx: number[] = new Array(1 << 17);
@@ -441,15 +491,23 @@ const marchAndThickenAllLevels = (
             const nxn = vx * invScale;
             const nyn = vy * invScale;
             const nzn = vz * invScale;
-            noise.fbmGrad(nxn, nyn, nzn, octaves, persistence);
+            if (octaves === 1) {
+              noise.fbmGrad1(nxn, nyn, nzn);
+            } else if (octaves === 2) {
+              noise.fbmGrad2(nxn, nyn, nzn, persistence);
+            } else if (octaves === 4) {
+              noise.fbmGrad4(nxn, nyn, nzn, persistence);
+            } else {
+              noise.fbmGrad(nxn, nyn, nzn, octaves, persistence);
+            }
             let gx = noise.gradX;
             let gy = noise.gradY;
             let gz = noise.gradZ;
-            const len = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1;
-            const scale = halfThick / len;
-            gx *= scale;
-            gy *= scale;
-            gz *= scale;
+            const len2 = gx * gx + gy * gy + gz * gz;
+            const invLen = len2 > 0 ? halfThick / Math.sqrt(len2) : halfThick;
+            gx *= invLen;
+            gy *= invLen;
+            gz *= invLen;
             cvx[e] = vx;
             cvy[e] = vy;
             cvz[e] = vz;
@@ -465,12 +523,7 @@ const marchAndThickenAllLevels = (
             ivx[e] = ivxRaw < minX ? minX : ivxRaw > maxX ? maxX : ivxRaw;
             ivy[e] = ivyRaw < minY ? minY : ivyRaw > maxY ? maxY : ivyRaw;
             ivz[e] = ivzRaw < minZ ? minZ : ivzRaw > maxZ ? maxZ : ivzRaw;
-          }
-
-          for (let e = 0; e < 12; e++) {
-            if ((edgeBits >> e & 1) !== 0) {
-              ovKeys[e] = vtxKey(ovx[e], ovy[e], ovz[e]);
-            }
+            ovKeys[e] = vtxKey(ovx[e], ovy[e], ovz[e]);
           }
 
           patchGen++;
@@ -524,12 +577,12 @@ const marchAndThickenAllLevels = (
             const ok12 = undirectedEdgeKeyFromVtx(ovKeys[e1], ovKeys[e2]);
             const ok23 = undirectedEdgeKeyFromVtx(ovKeys[e2], ovKeys[e3]);
             const ok31 = undirectedEdgeKeyFromVtx(ovKeys[e3], ovKeys[e1]);
-            let n = outerEdgeCount.get(ok12);
-            outerEdgeCount.set(ok12, n === undefined ? 1 : n + 1);
-            n = outerEdgeCount.get(ok23);
-            outerEdgeCount.set(ok23, n === undefined ? 1 : n + 1);
-            n = outerEdgeCount.get(ok31);
-            outerEdgeCount.set(ok31, n === undefined ? 1 : n + 1);
+            let ec = outerEdgeCount[ok12];
+            outerEdgeCount[ok12] = ec === undefined ? 1 : ec + 1;
+            ec = outerEdgeCount[ok23];
+            outerEdgeCount[ok23] = ec === undefined ? 1 : ec + 1;
+            ec = outerEdgeCount[ok31];
+            outerEdgeCount[ok31] = ec === undefined ? 1 : ec + 1;
 
             if (stamp[id12] === patchGen && pCount[id12] === 1) {
               queueBoundarySide(ok12, li, e1, e2);
@@ -547,12 +600,9 @@ const marchAndThickenAllLevels = (
   }
 
   const sideEdgeSeen = new Set<string>();
-  const openOuter = new Set<string>();
-  for (const [key, count] of outerEdgeCount) {
-    if (count === 1) openOuter.add(key);
-  }
   for (let pi = 0; pi < pendingLen; pi++) {
-    if (!openOuter.has(pendingOuterKeys[pi])) continue;
+    const outerKey = pendingOuterKeys[pi];
+    if (outerEdgeCount[outerKey] !== 1) continue;
     const cvi = pi * 6;
     const centerKey = centerSideKey(
       pendingLevelIdx[pi],
@@ -608,17 +658,58 @@ export const buildTopographicalGeometry = (form: FormObject, resolution: number)
   const zStep = sz * invScale;
   let idx = 0;
   let z = z0 * invScale;
-  for (let k = 0; k < nz; k++) {
-    let y = y0 * invScale;
-    for (let j = 0; j < ny; j++) {
-      let x = x0 * invScale;
-      for (let i = 0; i < nx; i++) {
-        field[idx++] = noise.fbm(x, y, z, octaves, persistence);
-        x += xStep;
+  if (octaves === 1) {
+    for (let k = 0; k < nz; k++) {
+      let y = y0 * invScale;
+      for (let j = 0; j < ny; j++) {
+        let x = x0 * invScale;
+        for (let i = 0; i < nx; i++) {
+          field[idx++] = noise.fbm1(x, y, z);
+          x += xStep;
+        }
+        y += yStep;
       }
-      y += yStep;
+      z += zStep;
     }
-    z += zStep;
+  } else if (octaves === 2) {
+    for (let k = 0; k < nz; k++) {
+      let y = y0 * invScale;
+      for (let j = 0; j < ny; j++) {
+        let x = x0 * invScale;
+        for (let i = 0; i < nx; i++) {
+          field[idx++] = noise.fbm2(x, y, z, persistence);
+          x += xStep;
+        }
+        y += yStep;
+      }
+      z += zStep;
+    }
+  } else if (octaves === 4) {
+    for (let k = 0; k < nz; k++) {
+      let y = y0 * invScale;
+      for (let j = 0; j < ny; j++) {
+        let x = x0 * invScale;
+        for (let i = 0; i < nx; i++) {
+          field[idx++] = noise.fbm4(x, y, z, persistence);
+          x += xStep;
+        }
+        y += yStep;
+      }
+      z += zStep;
+    }
+  } else {
+    for (let k = 0; k < nz; k++) {
+      let y = y0 * invScale;
+      for (let j = 0; j < ny; j++) {
+        let x = x0 * invScale;
+        for (let i = 0; i < nx; i++) {
+          field[idx++] = noise.fbm(x, y, z, octaves, persistence);
+          x += xStep;
+        }
+        y += yStep;
+      }
+      z += zStep;
+    }
   }
 
   const grid: GridSpec = { nx, ny, nz, x0, y0, z0, sx, sy, sz };

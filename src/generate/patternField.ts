@@ -115,32 +115,30 @@ export const buildPatternGrid = (form: FormObject, resolution: number): PatternG
   };
 
   const field = new Float32Array(grid.nx * grid.ny * grid.nz);
+  field.fill(OUTSIDE_FIELD);
 
   const BINS = 1024;
   const histogram = new Uint32Array(BINS);
   let sampleCount = 0;
 
-  let idx = 0;
-  for (let k = 0; k < grid.nz; k++) {
-    const isPadZ = k === 0 || k === grid.nz - 1;
-    const z = grid.z0 + k * sz;
-    for (let j = 0; j < grid.ny; j++) {
-      const isPadY = j === 0 || j === grid.ny - 1;
-      const y = grid.y0 + j * sy;
-      for (let i = 0; i < grid.nx; i++) {
-        const isPadX = i === 0 || i === grid.nx - 1;
+  const xEnd = grid.nx - 1;
+  const yEnd = grid.ny - 1;
+  const zEnd = grid.nz - 1;
 
-        if (isPadX || isPadY || isPadZ) {
-          field[idx++] = OUTSIDE_FIELD;
-          continue;
-        }
-
-        const x = grid.x0 + i * sx;
+  for (let k = 1; k < zEnd; k++) {
+    const z = grid.z0 + k * grid.sz;
+    let rowBase = k * grid.ny * grid.nx;
+    for (let j = 1; j < yEnd; j++) {
+      rowBase += grid.nx;
+      const y = grid.y0 + j * grid.sy;
+      let x = grid.x0 + grid.sx;
+      let idx = rowBase + 1;
+      for (let i = 1; i < xEnd; i++) {
         const value = pattern.sample(form, x, y, z, context);
         field[idx++] = value;
-
         histogram[Math.min(BINS - 1, Math.max(0, Math.floor(value * BINS)))]++;
         sampleCount++;
+        x += grid.sx;
       }
     }
   }

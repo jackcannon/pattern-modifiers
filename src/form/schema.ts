@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'crosshatch', 'parallel', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -55,6 +55,7 @@ export const FormSchema = z.object({
   hatchMinWidthPct: z.number().min(0.1).max(80),
   hatchMaxWidthPct: z.number().min(0.1).max(120),
   hatchCrossStart: z.number().min(0).max(90),
+  zOffsetPct: z.number().min(0).max(100),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -119,6 +120,7 @@ export const getDefaultFileName = (form: FormObject) => {
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
+  else if (form.type === 'kelvin') parts.push(`kvsp${form.dotSpacing}-wt${form.lineThickness}-zo${form.zOffsetPct}`);
   else if (form.type === 'crosshatch') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
   else if (form.type === 'parallel') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
@@ -198,7 +200,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch' && form.type !== 'parallel'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -207,7 +209,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'crosshatch' && form.type !== 'parallel'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel'
   },
   seed: {
     paramName: 's',
@@ -391,8 +393,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   lineThickness: {
     paramName: 'tlt',
     type: 'slider',
-    displayName: 'Line Thickness',
-    description: 'Width of each topographical line. Uniform everywhere, measured in millimetres',
+    displayName: (form) => (form.type === 'kelvin' ? 'Wall Thickness' : 'Line Thickness'),
+    description: (form) =>
+      form.type === 'kelvin'
+        ? 'Thickness of the shared walls between truncated octahedron cells, measured in millimetres'
+        : 'Width of each topographical line. Uniform everywhere, measured in millimetres',
     defaultValue: 1.5,
     unit: 'mm',
     sliderStep: 0.5,
@@ -463,8 +468,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   dotSpacing: {
     paramName: 'dsp',
     type: 'slider',
-    displayName: 'Dot Spacing',
-    description: 'Distance between sphere centres on the grid. Smaller values pack in more dots',
+    displayName: (form) => (form.type === 'kelvin' ? 'Cell Spacing' : 'Dot Spacing'),
+    description: (form) =>
+      form.type === 'kelvin'
+        ? 'Centre-to-centre distance between truncated octahedron cells on the body-centred cubic lattice'
+        : 'Distance between sphere centres on the grid. Smaller values pack in more dots',
     defaultValue: 7,
     unit: 'mm',
     sliderStep: 0.5,
@@ -483,6 +491,9 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
       if (form.type === 'parallel') {
         return 'Underlying noise pattern that drives line weight variation across the volume';
       }
+      if (form.type === 'kelvin') {
+        return 'Underlying noise pattern that drives hex cell size variation across the volume';
+      }
       return 'Underlying noise pattern that drives dot size variation across the volume';
     },
     defaultValue: 'perlin',
@@ -495,9 +506,14 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   dotMinSizePct: {
     paramName: 'dmnp',
     type: 'slider',
-    displayName: 'Min Dot Size',
-    description: (form) =>
-      `Radius of the smallest dots as a percentage of Dot Spacing (${((form.dotSpacing * form.dotMinSizePct) / 100).toFixed(2)} mm at current spacing)`,
+    displayName: (form) => (form.type === 'kelvin' ? 'Min Cell Size' : 'Min Dot Size'),
+    description: (form) => {
+      const mm = ((form.dotSpacing * form.dotMinSizePct) / 100).toFixed(2);
+      if (form.type === 'kelvin') {
+        return `Circumradius of the smallest hex cells as a percentage of Cell Spacing (${mm} mm at current spacing)`;
+      }
+      return `Radius of the smallest dots as a percentage of Dot Spacing (${mm} mm at current spacing)`;
+    },
     defaultValue: 5,
     unit: '%',
     sliderStep: 0.5,
@@ -508,9 +524,14 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
   dotMaxSizePct: {
     paramName: 'dmxp',
     type: 'slider',
-    displayName: 'Max Dot Size',
-    description: (form) =>
-      `Radius of the largest dots as a percentage of Dot Spacing (${((form.dotSpacing * form.dotMaxSizePct) / 100).toFixed(2)} mm at current spacing). Dots merge when radii overlap neighbours`,
+    displayName: (form) => (form.type === 'kelvin' ? 'Max Cell Size' : 'Max Dot Size'),
+    description: (form) => {
+      const mm = ((form.dotSpacing * form.dotMaxSizePct) / 100).toFixed(2);
+      if (form.type === 'kelvin') {
+        return `Circumradius of the largest hex cells as a percentage of Cell Spacing (${mm} mm at current spacing). Cells merge where they overlap neighbours`;
+      }
+      return `Radius of the largest dots as a percentage of Dot Spacing (${mm} mm at current spacing). Dots merge when radii overlap neighbours`;
+    },
     defaultValue: 65,
     unit: '%',
     sliderStep: 0.5,
@@ -525,9 +546,14 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description: (form) => {
       const spacing =
         form.type === 'crosshatch' || form.type === 'parallel' ? form.hatchSpacing : form.dotSpacing;
-      const label =
-        form.type === 'crosshatch' || form.type === 'parallel' ? 'Line Spacing' : 'Dot Spacing';
-      return `Blend radius when strokes touch, as a percentage of ${label} (${((spacing * form.mergeSmoothnessPct) / 100).toFixed(2)} mm at current spacing)`;
+      const mm = ((spacing * form.mergeSmoothnessPct) / 100).toFixed(2);
+      if (form.type === 'crosshatch' || form.type === 'parallel') {
+        return `Blend radius when strokes touch, as a percentage of Line Spacing (${mm} mm at current spacing)`;
+      }
+      if (form.type === 'kelvin') {
+        return `Blend radius when cells touch, as a percentage of Cell Spacing (${mm} mm at current spacing)`;
+      }
+      return `Blend radius when dots touch, as a percentage of Dot Spacing (${mm} mm at current spacing)`;
     },
     defaultValue: 30,
     unit: '%',
@@ -586,6 +612,22 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 0,
     max: 90
+  },
+  zOffsetPct: {
+    paramName: 'kvzo',
+    type: 'slider',
+    displayName: 'Lattice offset',
+    description: (form) => {
+      const mm = ((form.dotSpacing * form.zOffsetPct) / 100).toFixed(2);
+      return `Shifts the tilted lattice origin as a percentage of Cell Spacing (${mm} mm along each axis at current spacing). Stops walls lining up with model faces, including the build plate`;
+    },
+    defaultValue: 50,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 0.5,
+    min: 0,
+    max: 100,
+    show: (form) => form.type === 'kelvin'
   },
 
   previewResolution: {

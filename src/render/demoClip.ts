@@ -86,6 +86,377 @@ const isSolidAt = (clip: ClipRuntime, x: number, y: number, z: number) => {
   return clip.solidHigh ? value >= clip.iso : value <= clip.iso;
 };
 
+const isSolidValue = (value: number, clip: ClipRuntime) =>
+  clip.solidHigh ? value >= clip.iso : value <= clip.iso;
+
+const fieldValueAt = (clip: ClipRuntime, x: number, y: number, z: number) => {
+  if (x < clip.minX || x > clip.maxX || y < clip.minY || y > clip.maxY || z < clip.minZ || z > clip.maxZ) {
+    return clip.solidHigh ? clip.iso - 1 : clip.iso + 1;
+  }
+  return sampleAt(clip, x, y, z);
+};
+
+/** True when a thin wall shell may cross this edge even if both endpoints are outside. */
+const edgeMayCrossSolid = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): boolean => {
+  const fa = fieldValueAt(clip, ax, ay, az);
+  const fb = fieldValueAt(clip, bx, by, bz);
+  if (isSolidValue(fa, clip) || isSolidValue(fb, clip)) return true;
+  if ((fa - clip.iso) * (fb - clip.iso) < 0) return true;
+
+  const steps = clip.thinShell ? 12 : 1;
+  let prevV = fa;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const v = fieldValueAt(clip, ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t);
+    if (isSolidValue(v, clip)) return true;
+    if ((prevV - clip.iso) * (v - clip.iso) < 0) return true;
+    prevV = v;
+  }
+
+  return false;
+};
+
+const triangleMayIntersectThinSolid = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number
+): boolean => {
+  if (edgeMayCrossSolid(clip, ax, ay, az, bx, by, bz)) return true;
+  if (edgeMayCrossSolid(clip, bx, by, bz, cx, cy, cz)) return true;
+  if (edgeMayCrossSolid(clip, cx, cy, cz, ax, ay, az)) return true;
+  const mx = (ax + bx + cx) / 3;
+  const my = (ay + by + cy) / 3;
+  const mz = (az + bz + cz) / 3;
+  return isSolidAt(clip, mx, my, mz);
+};
+
+const THIN_SHELL_MAX_DEPTH = 4;
+const THIN_SHELL_SUBDIVISION_DEPTH = 4;
+const thinShellEdgePoint = new Float32Array(6);
+
+const maxTriangleEdgeLength = (
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number
+): number => {
+  const ab = Math.hypot(bx - ax, by - ay, bz - az);
+  const bc = Math.hypot(cx - bx, cy - by, cz - bz);
+  const ca = Math.hypot(ax - cx, ay - cy, az - cz);
+  return Math.max(ab, bc, ca);
+};
+
+const thinShellEdgeLimit = (clip: ClipRuntime): number =>
+  Math.max(0.12, (clip.shellThickness ?? 1) * 0.35);
+
+const thinShellMaxDepth = (clip: ClipRuntime): number =>
+  clip.thinShell ? THIN_SHELL_SUBDIVISION_DEPTH : THIN_SHELL_MAX_DEPTH;
+
+const writeIsoEdgePoint = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  out: Float32Array,
+  offset: number
+): boolean => {
+  const fa = fieldValueAt(clip, ax, ay, az);
+  const fb = fieldValueAt(clip, bx, by, bz);
+
+  if (!clip.thinShell) {
+    edgeIntersection(ax, ay, az, bx, by, bz, fa, fb, clip.iso, out, offset);
+    return true;
+  }
+
+  const steps = 8;
+  let prevT = 0;
+  let prevV = fa;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const v = fieldValueAt(clip, ax + (bx - ax) * t, ay + (by - ay) * t, az + (bz - az) * t);
+    if ((prevV - clip.iso) * (v - clip.iso) < 0) {
+      edgeIntersection(
+        ax,
+        ay,
+        az,
+        bx,
+        by,
+        bz,
+        prevV,
+        v,
+        clip.iso,
+        out,
+        offset,
+        prevT,
+        t
+      );
+      return true;
+    }
+    prevT = t;
+    prevV = v;
+  }
+
+  return false;
+};
+
+/** Clips one triangle with per-sample solid tests (used after thin-shell subdivision). */
+const clipTriangleSampled = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  inside: TriangleWriter,
+  outside: TriangleWriter
+): void => {
+  const sa = isSolidAt(clip, ax, ay, az);
+  const sb = isSolidAt(clip, bx, by, bz);
+  const sc = isSolidAt(clip, cx, cy, cz);
+  const solidCount = (sa ? 1 : 0) + (sb ? 1 : 0) + (sc ? 1 : 0);
+
+  if (solidCount === 0) {
+    outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    return;
+  }
+
+  if (solidCount === 3) {
+    inside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    return;
+  }
+
+  let tax = ax;
+  let tay = ay;
+  let taz = az;
+  let tbx = bx;
+  let tby = by;
+  let tbz = bz;
+  let tcx = cx;
+  let tcy = cy;
+  let tcz = cz;
+
+  if (solidCount === 1) {
+    if (sb && !sa && !sc) {
+      tax = bx;
+      tay = by;
+      taz = bz;
+      tbx = cx;
+      tby = cy;
+      tbz = cz;
+      tcx = ax;
+      tcy = ay;
+      tcz = az;
+    } else if (!sa && !sb && sc) {
+      tax = cx;
+      tay = cy;
+      taz = cz;
+      tbx = ax;
+      tby = ay;
+      tbz = az;
+      tcx = bx;
+      tcy = by;
+      tcz = bz;
+    }
+
+    writeIsoEdgePoint(clip, tax, tay, taz, tbx, tby, tbz, thinShellEdgePoint, 0);
+    writeIsoEdgePoint(clip, tax, tay, taz, tcx, tcy, tcz, thinShellEdgePoint, 3);
+    inside.push(
+      tax,
+      tay,
+      taz,
+      thinShellEdgePoint[0],
+      thinShellEdgePoint[1],
+      thinShellEdgePoint[2],
+      thinShellEdgePoint[3],
+      thinShellEdgePoint[4],
+      thinShellEdgePoint[5]
+    );
+    outside.push(
+      thinShellEdgePoint[0],
+      thinShellEdgePoint[1],
+      thinShellEdgePoint[2],
+      tbx,
+      tby,
+      tbz,
+      tcx,
+      tcy,
+      tcz
+    );
+    outside.push(
+      thinShellEdgePoint[0],
+      thinShellEdgePoint[1],
+      thinShellEdgePoint[2],
+      tcx,
+      tcy,
+      tcz,
+      thinShellEdgePoint[3],
+      thinShellEdgePoint[4],
+      thinShellEdgePoint[5]
+    );
+    return;
+  }
+
+  if (!sc && sa && sb) {
+    tax = ax;
+    tay = ay;
+    taz = az;
+    tbx = bx;
+    tby = by;
+    tbz = bz;
+    tcx = cx;
+    tcy = cy;
+    tcz = cz;
+  } else if (!sb && sa && sc) {
+    tax = ax;
+    tay = ay;
+    taz = az;
+    tbx = cx;
+    tby = cy;
+    tbz = cz;
+    tcx = bx;
+    tcy = by;
+    tcz = bz;
+  } else {
+    tax = bx;
+    tay = by;
+    taz = bz;
+    tbx = cx;
+    tby = cy;
+    tbz = cz;
+    tcx = ax;
+    tcy = ay;
+    tcz = az;
+  }
+
+  writeIsoEdgePoint(clip, tax, tay, taz, tcx, tcy, tcz, thinShellEdgePoint, 0);
+  writeIsoEdgePoint(clip, tbx, tby, tbz, tcx, tcy, tcz, thinShellEdgePoint, 3);
+  outside.push(
+    tcx,
+    tcy,
+    tcz,
+    thinShellEdgePoint[0],
+    thinShellEdgePoint[1],
+    thinShellEdgePoint[2],
+    thinShellEdgePoint[3],
+    thinShellEdgePoint[4],
+    thinShellEdgePoint[5]
+  );
+  inside.push(tax, tay, taz, tbx, tby, tbz, thinShellEdgePoint[3], thinShellEdgePoint[4], thinShellEdgePoint[5]);
+  inside.push(tax, tay, taz, thinShellEdgePoint[3], thinShellEdgePoint[4], thinShellEdgePoint[5], thinShellEdgePoint[0], thinShellEdgePoint[1], thinShellEdgePoint[2]);
+};
+
+const subdivideThinShellTriangle = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  depth: number,
+  inside: TriangleWriter,
+  outside: TriangleWriter
+): void => {
+  const abx = (ax + bx) * 0.5;
+  const aby = (ay + by) * 0.5;
+  const abz = (az + bz) * 0.5;
+  const bcx = (bx + cx) * 0.5;
+  const bcy = (by + cy) * 0.5;
+  const bcz = (bz + cz) * 0.5;
+  const cax = (cx + ax) * 0.5;
+  const cay = (cy + ay) * 0.5;
+  const caz = (cz + az) * 0.5;
+  const next = depth + 1;
+
+  clipThinShellTriangle(clip, ax, ay, az, abx, aby, abz, cax, cay, caz, next, inside, outside);
+  clipThinShellTriangle(clip, bx, by, bz, bcx, bcy, bcz, abx, aby, abz, next, inside, outside);
+  clipThinShellTriangle(clip, cx, cy, cz, cax, cay, caz, bcx, bcy, bcz, next, inside, outside);
+  clipThinShellTriangle(clip, abx, aby, abz, bcx, bcy, bcz, cax, cay, caz, next, inside, outside);
+};
+
+const clipThinShellTriangle = (
+  clip: ClipRuntime,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  depth: number,
+  inside: TriangleWriter,
+  outside: TriangleWriter
+): void => {
+  const maxDepth = thinShellMaxDepth(clip);
+  const sa = isSolidAt(clip, ax, ay, az);
+  const sb = isSolidAt(clip, bx, by, bz);
+  const sc = isSolidAt(clip, cx, cy, cz);
+  const solidCount = (sa ? 1 : 0) + (sb ? 1 : 0) + (sc ? 1 : 0);
+
+  if (solidCount === 0) {
+    if (!triangleMayIntersectThinSolid(clip, ax, ay, az, bx, by, bz, cx, cy, cz)) {
+      outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      return;
+    }
+    if (depth >= maxDepth) {
+      outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+      return;
+    }
+
+    subdivideThinShellTriangle(clip, ax, ay, az, bx, by, bz, cx, cy, cz, depth, inside, outside);
+    return;
+  }
+
+  if (solidCount === 3) {
+    inside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    return;
+  }
+
+  if (
+    depth < maxDepth &&
+    clip.thinShell &&
+    solidCount !== 0 &&
+    maxTriangleEdgeLength(ax, ay, az, bx, by, bz, cx, cy, cz) > thinShellEdgeLimit(clip)
+  ) {
+    subdivideThinShellTriangle(clip, ax, ay, az, bx, by, bz, cx, cy, cz, depth, inside, outside);
+    return;
+  }
+
+  clipTriangleSampled(clip, ax, ay, az, bx, by, bz, cx, cy, cz, inside, outside);
+};
+
 const edgeIntersection = (
   ax: number,
   ay: number,
@@ -97,14 +468,17 @@ const edgeIntersection = (
   fb: number,
   iso: number,
   out: Float32Array,
-  offset: number
+  offset: number,
+  t0 = 0,
+  t1 = 1
 ) => {
   const denom = fb - fa;
-  const t = Math.abs(denom) < 1e-12 ? 0.5 : (iso - fa) / denom;
-  const clamped = t < 0 ? 0 : t > 1 ? 1 : t;
-  out[offset] = ax + (bx - ax) * clamped;
-  out[offset + 1] = ay + (by - ay) * clamped;
-  out[offset + 2] = az + (bz - az) * clamped;
+  const tLocal = Math.abs(denom) < 1e-12 ? 0.5 : (iso - fa) / denom;
+  const clamped = tLocal < 0 ? 0 : tLocal > 1 ? 1 : tLocal;
+  const t = t0 + (t1 - t0) * clamped;
+  out[offset] = ax + (bx - ax) * t;
+  out[offset + 1] = ay + (by - ay) * t;
+  out[offset + 2] = az + (bz - az) * t;
 };
 
 const assignGeometryBuffers = (
@@ -313,6 +687,10 @@ const clipTriangle = (
   const solidCount = vertexSolid[ia] + vertexSolid[ib] + vertexSolid[ic];
 
   if (solidCount === 0) {
+    if (triangleMayIntersectThinSolid(clip, ax, ay, az, bx, by, bz, cx, cy, cz)) {
+      clipThinShellTriangle(clip, ax, ay, az, bx, by, bz, cx, cy, cz, 0, inside, outside);
+      return;
+    }
     outside.push(ax, ay, az, bx, by, bz, cx, cy, cz);
     return;
   }
@@ -660,6 +1038,9 @@ export const clipPreparedDemoMesh = (
   outside.reset(triangleCount);
   edgeCache.clear();
 
+  const indices = index.array as Uint32Array | Uint16Array;
+  const indexLength = index.count;
+
   // Classify each unique mesh vertex once (vertices are shared by many triangles, and the analytic field
   // sample can be expensive), then look up the cached result while clipping.
   const vertexCount = positions.length / 3;
@@ -668,26 +1049,93 @@ export const clipPreparedDemoMesh = (
     vertexSolid[v] = isSolidAt(clip, positions[p], positions[p + 1], positions[p + 2]) ? 1 : 0;
   }
 
-  const indices = index.array as Uint32Array | Uint16Array;
-  const indexLength = index.count;
+  const clipTriangleThinShell = (ia: number, ib: number, ic: number) => {
+    const ai = ia * 3;
+    const bi = ib * 3;
+    const ci = ic * 3;
+    clipThinShellTriangle(
+      clip,
+      positions[ai],
+      positions[ai + 1],
+      positions[ai + 2],
+      positions[bi],
+      positions[bi + 1],
+      positions[bi + 2],
+      positions[ci],
+      positions[ci + 1],
+      positions[ci + 2],
+      0,
+      inside,
+      outside
+    );
+  };
+
+  const clipIndexedTriangle = (ia: number, ib: number, ic: number) => {
+    if (clip.thinShell) {
+      const solidCount = vertexSolid[ia] + vertexSolid[ib] + vertexSolid[ic];
+      if (solidCount === 3) {
+        const ai = ia * 3;
+        const bi = ib * 3;
+        const ci = ic * 3;
+        inside.push(
+          positions[ai],
+          positions[ai + 1],
+          positions[ai + 2],
+          positions[bi],
+          positions[bi + 1],
+          positions[bi + 2],
+          positions[ci],
+          positions[ci + 1],
+          positions[ci + 2]
+        );
+        return;
+      }
+      if (solidCount === 0) {
+        const ai = ia * 3;
+        const bi = ib * 3;
+        const ci = ic * 3;
+        if (
+          !triangleMayIntersectThinSolid(
+            clip,
+            positions[ai],
+            positions[ai + 1],
+            positions[ai + 2],
+            positions[bi],
+            positions[bi + 1],
+            positions[bi + 2],
+            positions[ci],
+            positions[ci + 1],
+            positions[ci + 2]
+          )
+        ) {
+          outside.push(
+            positions[ai],
+            positions[ai + 1],
+            positions[ai + 2],
+            positions[bi],
+            positions[bi + 1],
+            positions[bi + 2],
+            positions[ci],
+            positions[ci + 1],
+            positions[ci + 2]
+          );
+          return;
+        }
+      }
+      clipTriangleThinShell(ia, ib, ic);
+      return;
+    }
+
+    clipTriangle(clip, ia, ib, ic, positions, vertexSolid, edgeCache, inside, outside);
+  };
 
   if (indices instanceof Uint32Array) {
     for (let t = 0; t < indexLength; t += 3) {
-      clipTriangle(
-        clip,
-        indices[t],
-        indices[t + 1],
-        indices[t + 2],
-        positions,
-        vertexSolid,
-        edgeCache,
-        inside,
-        outside
-      );
+      clipIndexedTriangle(indices[t], indices[t + 1], indices[t + 2]);
     }
   } else {
     for (let t = 0; t < indexLength; t += 3) {
-      clipTriangle(clip, indices[t], indices[t + 1], indices[t + 2], positions, vertexSolid, edgeCache, inside, outside);
+      clipIndexedTriangle(indices[t], indices[t + 1], indices[t + 2]);
     }
   }
 

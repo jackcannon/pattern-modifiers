@@ -39,6 +39,10 @@ export interface ClipRuntime {
   maxK: number;
   /** When set, demo clipping evaluates this exact field instead of sampling the voxel grid */
   analytic?: (x: number, y: number, z: number) => number;
+  /** Subdivide demo triangles until edges fit the shell thickness before clipping */
+  thinShell?: boolean;
+  /** Full wall thickness (mm) paired with {@link thinShell} */
+  shellThickness?: number;
 }
 
 export interface ClipField {
@@ -294,7 +298,7 @@ const createGridSampler = (field: Float32Array, grid: GridSpec) => {
  * @returns {PatternField} field sampler driving demo clipping
  */
 const createAnalyticPatternField = (spec: ClipFieldSpec): PatternField => {
-  const { sample, iso, solidHigh, bounds, maxCellSize } = spec;
+  const { sample, iso, solidHigh, bounds, maxCellSize, thinShell, shellThickness } = spec;
 
   const clipRuntime: ClipRuntime = {
     iso,
@@ -317,7 +321,9 @@ const createAnalyticPatternField = (spec: ClipFieldSpec): PatternField => {
     maxI: 0,
     maxJ: 0,
     maxK: 0,
-    analytic: sample
+    analytic: sample,
+    thinShell,
+    shellThickness
   };
 
   const clip: ClipField = {

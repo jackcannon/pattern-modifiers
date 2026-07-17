@@ -11,6 +11,7 @@ import { woodgrainPattern } from './woodgrainPattern';
 import { topographicalPattern } from './topographicalPattern';
 import { latticePattern } from './latticePattern';
 import { halftonePattern } from './halftonePattern';
+import { kelvinPattern } from './kelvinPattern';
 import { crosshatchPattern } from './crosshatchPattern';
 import { parallelPattern } from './parallelPattern';
 
@@ -33,7 +34,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   crosshatchPattern,
   parallelPattern,
   halftonePattern,
-  latticePattern
+  latticePattern,
+  kelvinPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

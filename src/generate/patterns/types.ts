@@ -32,6 +32,10 @@ export interface ClipFieldSpec {
   bounds: PatternBounds;
   /** Longest demo-mesh edge (mm). Drives how finely the clipped mesh is subdivided */
   maxCellSize: number;
+  /** When true, demo clipping subdivides triangles until edges fit the shell thickness */
+  thinShell?: boolean;
+  /** Full wall thickness (mm) for {@link thinShell} subdivision */
+  shellThickness?: number;
 }
 
 export interface PatternFormSection {

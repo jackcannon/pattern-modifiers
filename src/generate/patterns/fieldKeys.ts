@@ -55,6 +55,8 @@ export const PARALLEL_FIELD_KEYS = [
   'persistence'
 ] as const satisfies readonly (keyof FormObject)[];
 
+export const KELVIN_FIELD_KEYS = ['dotSpacing', 'lineThickness', 'zOffsetPct'] as const satisfies readonly (keyof FormObject)[];
+
 export const WOODGRAIN_FIELD_KEYS = [
   'ringSpacing',
   'grainWaviness',

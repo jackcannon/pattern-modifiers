@@ -1,11 +1,22 @@
 import { Mesh } from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 
-import { FormObject, getDefaultFileName } from '../form/schema';
+import { getExportDisplayFileName } from '../form/exportState';
+import { FormObject } from '../form/schema';
 
 import { generateGeometry } from './generate';
 
-const ensureFileExtension = (name: string, ext: string = 'stl') => {
+export const forceDownloadBlob = (title: string, blob: Blob) => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = title;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+};
+
+export const ensureFileExtension = (name: string, ext: string = 'stl') => {
   if (name.endsWith('.' + ext)) return name;
   return name + '.' + ext;
 };
@@ -15,9 +26,10 @@ const ensureFileExtension = (name: string, ext: string = 'stl') => {
  * ready to be added to slicer software as a modifier.
  *
  * @param {FormObject} form - current form settings
+ * @param {string} [name] - download base name (without requiring .stl)
  * @returns {void}
  */
-export const downloadSTL = (form: FormObject): void => {
+export const downloadSTL = (form: FormObject, name: string = getExportDisplayFileName(form)): void => {
   const geometry = generateGeometry(form, form.exportResolution);
   const mesh = new Mesh(geometry);
 
@@ -27,15 +39,5 @@ export const downloadSTL = (form: FormObject): void => {
   geometry.dispose();
 
   const blob = new Blob([data], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-
-  const name = form.fileName.trim() || getDefaultFileName(form);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = ensureFileExtension(name, 'stl');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  forceDownloadBlob(ensureFileExtension(name, 'stl'), blob);
 };

@@ -16,6 +16,7 @@
     "@mui/material": "^6.4.1",
     "@react-three/drei": "^9.114.0",
     "@react-three/fiber": "^8.17.10",
+    "fflate": "^0.8.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "swiss-ak": "^3.4.2",

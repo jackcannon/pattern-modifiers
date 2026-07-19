@@ -1,0 +1,61 @@
+.app-crash-recovery {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 100vh;
+  padding: 2rem;
+  max-width: 32rem;
+  margin: 0 auto;
+  box-sizing: border-box;
+  color: var(--txt, #181818);
+  background: var(--bg, #f8f8f8);
+}
+
+.app-crash-recovery-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.app-crash-recovery-body {
+  margin: 0;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.app-crash-recovery-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.app-crash-recovery-button {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--txt, #181818) 25%, transparent);
+  background: var(--txt, #181818);
+  color: var(--bg, #f8f8f8);
+  border-radius: var(--radius, 0.25rem);
+  padding: 0.5rem 0.85rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.app-crash-recovery-button:hover {
+  opacity: 0.9;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  .app-crash-recovery {
+    color: #f8f8f8;
+    background: #181818;
+  }
+
+  .app-crash-recovery-button {
+    background: #f8f8f8;
+    color: #181818;
+    border-color: color-mix(in srgb, #f8f8f8 25%, transparent);
+  }
+}

@@ -5,11 +5,12 @@ import DownloadIcon from '@mui/icons-material/Download';
 import IosShareIcon from '@mui/icons-material/IosShare';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-import { applyExportToForm } from '../form/exportState';
+import { applyExportToForm, getExportDisplayFileName } from '../form/exportState';
 import { loadExportHistoryRecord, useExportHistory } from '../form/exportHistoryStorage';
 import { FormObject, FormSchema } from '../form/schema';
 import { buildShareUrl } from '../form/shareUrl';
 import { Form } from '../form/Form';
+import { download3MF } from '../generate/export3mf';
 import { downloadSTL } from '../generate/stl';
 
 import { ExportHistory } from './ExportHistory';
@@ -41,8 +42,13 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
     }
   };
 
-  const handleDownload = () => {
-    downloadSTL(form);
+  const handleDownloadStl = () => {
+    downloadSTL(form, getExportDisplayFileName(form));
+    record(form);
+  };
+
+  const handleDownload3mf = () => {
+    download3MF(form, getExportDisplayFileName(form));
     record(form);
   };
 
@@ -71,11 +77,20 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
         <Button
           variant="contained"
           size="large"
-          className="actions-download"
+          className="actions-download actions-download-stl"
           startIcon={<DownloadIcon />}
-          onClick={handleDownload}
+          onClick={handleDownloadStl}
         >
-          Download STL
+          STL
+        </Button>
+        <Button
+          variant="contained"
+          size="large"
+          className="actions-download actions-download-3mf"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload3mf}
+        >
+          3MF
         </Button>
         <Tooltip title="Copy share link" placement="top" arrow>
           <Button variant="outlined" size="large" className="actions-share" aria-label="Copy share link" onClick={handleShare}>

@@ -646,7 +646,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'er',
     type: 'slider',
     displayName: 'Export Resolution',
-    description: 'Mesh detail for the exported STL. Number of grid cells along the longest axis',
+    description: 'Mesh detail for exported STL/3MF files. Number of grid cells along the longest axis',
     warning: 'High values can make export slow and produce large files',
     defaultValue: 192,
     sliderStep: 8,
@@ -707,9 +707,8 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'fn',
     type: 'text',
     displayName: 'File Name',
-    description: 'Name of the downloaded STL file. Leave blank to use the auto-generated name',
+    description: 'Base name for downloaded STL/3MF files. Leave blank to use the auto-generated name',
     defaultValue: '',
-    unit: '.stl',
     placeholder: (form) => getDefaultFileName(form)
   }
 };

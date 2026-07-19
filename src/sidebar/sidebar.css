@@ -33,8 +33,30 @@
       min-width: 0;
     }
 
-    .actions-share {
+    /* Soft primary-container (STL) + solid primary (3MF) */
+    .actions-download-stl.MuiButton-contained {
+      background-color: color-mix(in srgb, #FFDC00 18%, var(--bg));
+      color: #FFDC00;
+      box-shadow: none;
+
+      &:hover {
+        background-color: color-mix(in srgb, #FFDC00 28%, var(--bg));
+        box-shadow: none;
+      }
+    }
+
+    .actions-share.MuiButton-outlined {
       flex: 0 0 auto;
+      min-width: 0;
+      padding-inline: 0.65em;
+      color: color-mix(in srgb, var(--txt) 55%, transparent);
+      border-color: color-mix(in srgb, var(--txt) 28%, transparent);
+
+      &:hover {
+        color: color-mix(in srgb, var(--txt) 75%, transparent);
+        border-color: color-mix(in srgb, var(--txt) 45%, transparent);
+        background-color: color-mix(in srgb, var(--txt) 6%, transparent);
+      }
     }
   }
 

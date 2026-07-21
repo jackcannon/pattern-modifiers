@@ -7,7 +7,8 @@
     "dev": "bunx --bun vite",
     "build": "tsc && bunx --bun vite build",
     "preview": "bunx --bun vite preview",
-    "generate-icons": "bun scripts/generate-icons.ts"
+    "generate-icons": "bun scripts/generate-icons.ts",
+    "screenshots": "bun scripts/capture-readme-screenshots.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -30,6 +31,7 @@
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react-swc": "^3.0.0",
     "meshoptimizer": "^1.1.1",
+    "playwright": "^1.61.1",
     "typescript": "^5.3.3",
     "vite": "^4.2.0"
   }

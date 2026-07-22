@@ -4,7 +4,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 
-import { HELP_PAGES, type HelpPage } from './helpPages';
+import { getHelpPageImageSrcs, HELP_PAGES, preloadHelpImages, type HelpPage } from './helpPages';
 
 import './helpModal.css';
 
@@ -58,7 +58,10 @@ export const HelpModal = ({ open, onClose }: Props) => {
   const isLast = pageIndex === max - 1;
 
   useEffect(() => {
-    if (open) setPageIndex(0);
+    if (!open) return;
+    setPageIndex(0);
+    // Warm page 1 if hover never fired (e.g. keyboard/touch), then the rest.
+    preloadHelpImages(HELP_PAGES.flatMap(getHelpPageImageSrcs));
   }, [open]);
 
   return (

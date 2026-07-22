@@ -105,3 +105,26 @@ export const HELP_PAGES: HelpPage[] = [
     imageAlt: 'Slice preview showing modifier regions'
   }
 ];
+
+/** Image URLs used by a help page (main hero and any compare pair). */
+export const getHelpPageImageSrcs = (page: HelpPage): string[] => {
+  if (page.pendingScreenshot) return ['/help/placeholder.svg'];
+  if (page.compare) return [page.compare.left.src, page.compare.right.src];
+  return [page.imageSrc];
+};
+
+const preloadedSrcs = new Set<string>();
+
+/** Warm the browser cache for the given image URLs (skips already requested ones). */
+export const preloadHelpImages = (srcs: string[]) => {
+  for (const src of srcs) {
+    if (preloadedSrcs.has(src)) continue;
+    preloadedSrcs.add(src);
+    const img = new Image();
+    img.src = src;
+  }
+};
+
+export const preloadHelpPageImages = (page: HelpPage) => {
+  preloadHelpImages(getHelpPageImageSrcs(page));
+};

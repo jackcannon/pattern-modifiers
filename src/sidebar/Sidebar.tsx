@@ -16,6 +16,7 @@ import { downloadSTL } from '../generate/stl';
 
 import { ExportHistory } from './ExportHistory';
 import { HelpModal } from './HelpModal';
+import { HELP_PAGES, preloadHelpPageImages } from './helpPages';
 
 import logo from '/logo.svg';
 import boxbuilderLogo from '/boxbuilder-logo.svg';
@@ -78,6 +79,8 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
             size="small"
             aria-label="Open help"
             onClick={() => setHelpOpen(true)}
+            onMouseEnter={() => preloadHelpPageImages(HELP_PAGES[0])}
+            onFocus={() => preloadHelpPageImages(HELP_PAGES[0])}
           >
             <HelpOutlineIcon fontSize="small" />
           </IconButton>

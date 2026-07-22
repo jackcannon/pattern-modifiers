@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Button, Snackbar, Tooltip } from '@mui/material';
+import { Button, IconButton, Snackbar, Tooltip } from '@mui/material';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import DownloadIcon from '@mui/icons-material/Download';
 import IosShareIcon from '@mui/icons-material/IosShare';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 import { applyExportToForm, getExportDisplayFileName } from '../form/exportState';
 import { loadExportHistoryRecord, useExportHistory } from '../form/exportHistoryStorage';
@@ -14,6 +15,7 @@ import { download3MF } from '../generate/export3mf';
 import { downloadSTL } from '../generate/stl';
 
 import { ExportHistory } from './ExportHistory';
+import { HelpModal } from './HelpModal';
 
 import logo from '/logo.svg';
 import boxbuilderLogo from '/boxbuilder-logo.svg';
@@ -29,6 +31,7 @@ interface Props {
 
 export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
   const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { entries, selectedId, setSelectedId, record, remove } = useExportHistory();
 
   const handleShare = async () => {
@@ -67,7 +70,19 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
 
   return (
     <section className="sidebar" style={style}>
-      <img src={logo} alt="logo" className="logo" />
+      <div className="sidebar-header">
+        <img src={logo} alt="logo" className="logo" />
+        <Tooltip title="Help" placement="left" arrow>
+          <IconButton
+            className="sidebar-help"
+            size="small"
+            aria-label="Open help"
+            onClick={() => setHelpOpen(true)}
+          >
+            <HelpOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </div>
 
       <Form object={form} schema={FormSchema} onChange={setForm} />
 
@@ -144,6 +159,8 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
         message={shareNotice ?? ''}
         onClose={() => setShareNotice(null)}
       />
+
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </section>
   );
 };

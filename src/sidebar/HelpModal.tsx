@@ -1,10 +1,16 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button, Dialog, IconButton, Tooltip } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 
-import { getHelpPageImageSrcs, HELP_PAGES, preloadHelpImages, type HelpPage } from './helpPages';
+import {
+  getHelpPageImageSrcs,
+  HELP_PAGES,
+  preloadHelpImages,
+  preloadHelpPageImages,
+  type HelpPage
+} from './helpPages';
 
 import './helpModal.css';
 
@@ -52,6 +58,8 @@ const Hero = ({ page, onClose }: { page: HelpPage; onClose: () => void }) => {
 
 export const HelpModal = ({ open, onClose }: Props) => {
   const [pageIndex, setPageIndex] = useState(0);
+  const [navigating, setNavigating] = useState(false);
+  const navGen = useRef(0);
   const titleId = useId();
   const page = HELP_PAGES[pageIndex];
   const max = HELP_PAGES.length;
@@ -60,9 +68,23 @@ export const HelpModal = ({ open, onClose }: Props) => {
   useEffect(() => {
     if (!open) return;
     setPageIndex(0);
-    // Warm page 1 if hover never fired (e.g. keyboard/touch), then the rest.
-    preloadHelpImages(HELP_PAGES.flatMap(getHelpPageImageSrcs));
+    setNavigating(false);
+    navGen.current += 1;
+    // Page 1 is already loaded before open; warm the rest in the background.
+    void preloadHelpImages(HELP_PAGES.flatMap(getHelpPageImageSrcs));
   }, [open]);
+
+  const goToPage = async (index: number) => {
+    if (index < 0 || index >= max || index === pageIndex) return;
+
+    const gen = ++navGen.current;
+    setNavigating(true);
+    await preloadHelpPageImages(HELP_PAGES[index]);
+    if (gen !== navGen.current) return;
+
+    setPageIndex(index);
+    setNavigating(false);
+  };
 
   return (
     <Dialog
@@ -89,7 +111,11 @@ export const HelpModal = ({ open, onClose }: Props) => {
       </div>
 
       <div className="help-dialog-actions">
-        <Button size="small" onClick={() => setPageIndex((i) => Math.max(0, i - 1))} disabled={pageIndex === 0}>
+        <Button
+          size="small"
+          onClick={() => void goToPage(pageIndex - 1)}
+          disabled={pageIndex === 0 || navigating}
+        >
           <KeyboardArrowLeft />
           Back
         </Button>
@@ -97,11 +123,11 @@ export const HelpModal = ({ open, onClose }: Props) => {
           {pageIndex + 1} / {max}
         </span>
         {isLast ? (
-          <Button size="small" onClick={onClose}>
+          <Button size="small" onClick={onClose} disabled={navigating}>
             Done
           </Button>
         ) : (
-          <Button size="small" onClick={() => setPageIndex((i) => Math.min(max - 1, i + 1))}>
+          <Button size="small" onClick={() => void goToPage(pageIndex + 1)} disabled={navigating}>
             Next
             <KeyboardArrowRight />
           </Button>

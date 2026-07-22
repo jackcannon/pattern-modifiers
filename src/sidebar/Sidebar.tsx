@@ -33,7 +33,16 @@ interface Props {
 export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpOpening, setHelpOpening] = useState(false);
   const { entries, selectedId, setSelectedId, record, remove } = useExportHistory();
+
+  const openHelp = async () => {
+    if (helpOpen || helpOpening) return;
+    setHelpOpening(true);
+    await preloadHelpPageImages(HELP_PAGES[0]);
+    setHelpOpening(false);
+    setHelpOpen(true);
+  };
 
   const handleShare = async () => {
     const url = buildShareUrl(form);
@@ -78,9 +87,11 @@ export const Sidebar = ({ style, form, setForm, onReset }: Props) => {
             className="sidebar-help"
             size="small"
             aria-label="Open help"
-            onClick={() => setHelpOpen(true)}
-            onMouseEnter={() => preloadHelpPageImages(HELP_PAGES[0])}
-            onFocus={() => preloadHelpPageImages(HELP_PAGES[0])}
+            aria-busy={helpOpening}
+            disabled={helpOpening}
+            onClick={() => void openHelp()}
+            onMouseEnter={() => void preloadHelpPageImages(HELP_PAGES[0])}
+            onFocus={() => void preloadHelpPageImages(HELP_PAGES[0])}
           >
             <HelpOutlineIcon fontSize="small" />
           </IconButton>

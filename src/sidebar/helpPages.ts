@@ -113,18 +113,28 @@ export const getHelpPageImageSrcs = (page: HelpPage): string[] => {
   return [page.imageSrc];
 };
 
-const preloadedSrcs = new Set<string>();
+const preloadPromises = new Map<string, Promise<void>>();
 
-/** Warm the browser cache for the given image URLs (skips already requested ones). */
-export const preloadHelpImages = (srcs: string[]) => {
-  for (const src of srcs) {
-    if (preloadedSrcs.has(src)) continue;
-    preloadedSrcs.add(src);
+const preloadOne = (src: string): Promise<void> => {
+  const existing = preloadPromises.get(src);
+  if (existing) return existing;
+
+  const promise = new Promise<void>((resolve) => {
     const img = new Image();
+    const done = () => resolve();
+    img.onload = done;
+    img.onerror = done;
     img.src = src;
-  }
+    if (img.complete) done();
+  });
+
+  preloadPromises.set(src, promise);
+  return promise;
 };
 
-export const preloadHelpPageImages = (page: HelpPage) => {
+/** Warm the browser cache for the given image URLs. Resolves when all have loaded (or failed). */
+export const preloadHelpImages = (srcs: string[]): Promise<void> =>
+  Promise.all(srcs.map(preloadOne)).then(() => undefined);
+
+export const preloadHelpPageImages = (page: HelpPage): Promise<void> =>
   preloadHelpImages(getHelpPageImageSrcs(page));
-};

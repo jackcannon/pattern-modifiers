@@ -14,6 +14,7 @@ import { halftonePattern } from './halftonePattern';
 import { kelvinPattern } from './kelvinPattern';
 import { crosshatchPattern } from './crosshatchPattern';
 import { parallelPattern } from './parallelPattern';
+import { stripesPattern } from './stripesPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -27,6 +28,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   ridgedPattern,
   gyroidPattern,
   wavesPattern,
+  stripesPattern,
   topographicalPattern,
   marblePattern,
   kintsugiPattern,

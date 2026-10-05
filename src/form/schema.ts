@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -56,6 +56,10 @@ export const FormSchema = z.object({
   hatchMaxWidthPct: z.number().min(0.1).max(120),
   hatchCrossStart: z.number().min(0).max(90),
   zOffsetPct: z.number().min(0).max(100),
+  stripeWidth: z.number().min(0.5).max(400).default(15),
+  stripeGapPct: z.number().min(0).max(400).default(100),
+  stripeYaw: z.number().min(-180).max(180).default(0),
+  stripePitch: z.number().min(-90).max(90).default(0),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -123,13 +127,14 @@ export const getDefaultFileName = (form: FormObject) => {
   else if (form.type === 'kelvin') parts.push(`kvsp${form.dotSpacing}-wt${form.lineThickness}-zo${form.zOffsetPct}`);
   else if (form.type === 'crosshatch') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
   else if (form.type === 'parallel') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
+  else if (form.type === 'stripes') parts.push(`stw${form.stripeWidth}-stg${form.stripeGapPct}-sy${form.stripeYaw}-sp${form.stripePitch}`);
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
 
   if (form.type === 'topographical') {
     parts.push(`tp${form.lineSpacing}-${form.lineThickness}mm`);
-  } else if (form.type !== 'kintsugi') {
+  } else if (form.type !== 'kintsugi' && form.type !== 'stripes') {
     parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
   }
   return parts.join('-');
@@ -200,7 +205,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -209,7 +214,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes'
   },
   seed: {
     paramName: 's',
@@ -628,6 +633,55 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     min: 0,
     max: 100,
     show: (form) => form.type === 'kelvin'
+  },
+  stripeWidth: {
+    paramName: 'stw',
+    type: 'slider',
+    displayName: 'Stripe Width',
+    description: 'Width of each solid stripe.',
+    defaultValue: 15,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0.5,
+    max: 400
+  },
+  stripeGapPct: {
+    paramName: 'stg',
+    type: 'slider',
+    displayName: 'Gap Width',
+    description:
+      'Width of the gap between stripes, as a percentage of the stripe width. 50% makes a 50 mm gap when the stripe is 100 mm.',
+    defaultValue: 100,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 0,
+    max: 400
+  },
+  stripeYaw: {
+    paramName: 'sy',
+    type: 'slider',
+    displayName: 'Horizontal Angle',
+    description: 'Direction of change in the horizontal plane. 0° changes the pattern along the X axis.',
+    defaultValue: 0,
+    unit: '°',
+    sliderStep: 1,
+    inputStep: 1,
+    min: -180,
+    max: 180
+  },
+  stripePitch: {
+    paramName: 'sp',
+    type: 'slider',
+    displayName: 'Vertical Angle',
+    description: 'Tilt of that direction toward the Z axis. 0° keeps the direction level.',
+    defaultValue: 0,
+    unit: '°',
+    sliderStep: 1,
+    inputStep: 1,
+    min: -90,
+    max: 90
   },
 
   previewResolution: {

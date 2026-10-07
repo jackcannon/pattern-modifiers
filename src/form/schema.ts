@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -60,6 +60,8 @@ export const FormSchema = z.object({
   stripeGapPct: z.number().min(0).max(400).default(100),
   stripeYaw: z.number().min(-180).max(180).default(0),
   stripePitch: z.number().min(-90).max(90).default(0),
+  stripeWaveAmpPct: z.number().min(0).max(400).default(80),
+  stripeWaveLenPct: z.number().min(100).max(1600).default(400),
 
   previewResolution: z.number().int().min(16).max(256),
   exportResolution: z.number().int().min(16).max(256),
@@ -127,14 +129,17 @@ export const getDefaultFileName = (form: FormObject) => {
   else if (form.type === 'kelvin') parts.push(`kvsp${form.dotSpacing}-wt${form.lineThickness}-zo${form.zOffsetPct}`);
   else if (form.type === 'crosshatch') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
   else if (form.type === 'parallel') parts.push(`hsp${form.hatchSpacing}-htn${form.halftoneNoise}-hmnp${form.hatchMinWidthPct}-hmxp${form.hatchMaxWidthPct}`);
-  else if (form.type === 'stripes') parts.push(`stw${form.stripeWidth}-stg${form.stripeGapPct}-sy${form.stripeYaw}-sp${form.stripePitch}`);
+  else if (form.type === 'stripes' || form.type === 'zigzag' || form.type === 'sine') {
+    const stripePart = `stw${form.stripeWidth}-stg${form.stripeGapPct}-sy${form.stripeYaw}-sp${form.stripePitch}`;
+    parts.push(form.type === 'stripes' ? stripePart : `${stripePart}-sa${form.stripeWaveAmpPct}-sl${form.stripeWaveLenPct}`);
+  }
   else if (patternFields.includes('period')) parts.push(`gp${form.period}`);
   else if (patternFields.includes('wavelength')) parts.push(`wl${form.wavelength}`);
   else if (patternFields.includes('strutSpacing')) parts.push(`lsp${form.strutSpacing}`);
 
   if (form.type === 'topographical') {
     parts.push(`tp${form.lineSpacing}-${form.lineThickness}mm`);
-  } else if (form.type !== 'kintsugi' && form.type !== 'stripes') {
+  } else if (form.type !== 'kintsugi' && form.type !== 'stripes' && form.type !== 'zigzag' && form.type !== 'sine') {
     parts.push(`th${form.threshold}${form.thresholdInverse ? 'i' : ''}`);
   }
   return parts.join('-');
@@ -205,7 +210,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: 1,
     max: 99,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes' && form.type !== 'zigzag' && form.type !== 'sine'
   },
   thresholdInverse: {
     paramName: 'inv',
@@ -214,7 +219,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     description:
       'Flip which side of the threshold is solid. Off keeps the lowest values (0% to threshold). On keeps the highest (threshold to 100%)',
     defaultValue: false,
-    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes'
+    show: (form) => form.type !== 'topographical' && form.type !== 'kintsugi' && form.type !== 'halftone' && form.type !== 'kelvin' && form.type !== 'crosshatch' && form.type !== 'parallel' && form.type !== 'stripes' && form.type !== 'zigzag' && form.type !== 'sine'
   },
   seed: {
     paramName: 's',
@@ -682,6 +687,30 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 1,
     min: -90,
     max: 90
+  },
+  stripeWaveAmpPct: {
+    paramName: 'swa',
+    type: 'slider',
+    displayName: 'Amplitude',
+    description: 'Side shift of each peak, as a percentage of the stripe width. 100% shifts a peak by one stripe width.',
+    defaultValue: 80,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 0,
+    max: 400
+  },
+  stripeWaveLenPct: {
+    paramName: 'swl',
+    type: 'slider',
+    displayName: 'Wavelength',
+    description: 'Length of one repeat along the stripe, as a percentage of the stripe width. 400% is four stripe widths long.',
+    defaultValue: 400,
+    unit: '%',
+    sliderStep: 10,
+    inputStep: 1,
+    min: 100,
+    max: 1600
   },
 
   previewResolution: {

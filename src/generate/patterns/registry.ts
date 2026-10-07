@@ -15,6 +15,8 @@ import { kelvinPattern } from './kelvinPattern';
 import { crosshatchPattern } from './crosshatchPattern';
 import { parallelPattern } from './parallelPattern';
 import { stripesPattern } from './stripesPattern';
+import { zigzagPattern } from './zigzagPattern';
+import { sinePattern } from './sinePattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -29,6 +31,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   gyroidPattern,
   wavesPattern,
   stripesPattern,
+  zigzagPattern,
+  sinePattern,
   topographicalPattern,
   marblePattern,
   kintsugiPattern,
@@ -57,10 +61,11 @@ const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
   noise: 'Noise',
   cellular: 'Cellular',
   surfaces: 'Surfaces',
+  stripes: 'Stripes',
   other: 'Other'
 };
 
-const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'shading', 'cellular', 'surfaces', 'other'];
+const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'shading', 'cellular', 'surfaces', 'stripes', 'other'];
 
 export const PATTERN_TYPE_OPTION_GROUPS = PATTERN_CATEGORY_ORDER.map((category) => ({
   label: PATTERN_CATEGORY_LABELS[category],

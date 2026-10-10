@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra', 'giraffe']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -50,6 +50,10 @@ export const FormSchema = z.object({
   zebraWaviness: z.number().min(0).max(2),
   zebraForking: z.number().min(0).max(0.6),
   zebraWidthVariation: z.number().min(0).max(0.3),
+  giraffeIrregularity: z.number().min(0).max(1),
+  giraffeRounding: z.number().min(0).max(0.2),
+  giraffeEdgeRoughness: z.number().min(0).max(0.08),
+  giraffeStretch: z.number().min(1).max(3),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -256,7 +260,9 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
           ? 'Rosette Spacing'
           : form.type === 'zebra'
             ? 'Stripe Spacing'
-            : 'Feature Size',
+            : form.type === 'giraffe'
+              ? 'Patch Size'
+              : 'Feature Size',
     description: (form) =>
       form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
         ? 'Size of each cell. Larger values produce bigger cells'
@@ -534,6 +540,50 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.01,
     min: 0,
     max: 0.3
+  },
+  giraffeIrregularity: {
+    paramName: 'gfi',
+    type: 'slider',
+    displayName: 'Patch Irregularity',
+    description: 'Random offset of each patch centre. 0 gives a regular pattern, higher values mix patch sizes and shapes',
+    defaultValue: 0.5,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 1
+  },
+  giraffeRounding: {
+    paramName: 'gfr',
+    type: 'slider',
+    displayName: 'Corner Rounding',
+    description: 'How round the patch corners are. 0 keeps them sharp',
+    defaultValue: 0.03,
+    sliderStep: 0.01,
+    inputStep: 0.005,
+    min: 0,
+    max: 0.2
+  },
+  giraffeEdgeRoughness: {
+    paramName: 'gfe',
+    type: 'slider',
+    displayName: 'Edge Roughness',
+    description: 'Small wobbles and notches along patch edges. 0 gives smooth edges',
+    defaultValue: 0.02,
+    sliderStep: 0.005,
+    inputStep: 0.005,
+    min: 0,
+    max: 0.08
+  },
+  giraffeStretch: {
+    paramName: 'gfs',
+    type: 'slider',
+    displayName: 'Patch Stretch',
+    description: 'Draws the patches out along the Z axis. 1 keeps them round',
+    defaultValue: 1,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 1,
+    max: 3
   },
   crackWidth: {
     paramName: 'kcw',

@@ -73,6 +73,7 @@ Patterns are grouped in the sidebar. Default is **Topographical**.
 | Leopard | Broken rings and spots like leopard or jaguar rosettes. Use threshold to control how thick the rings are. |
 | Zebra | Bold, even stripes that flow, curve and fork like a zebra coat. Use threshold to balance stripe and gap width. |
 | Giraffe | Solid patches with rounded corners, split by a network of even borders like a giraffe coat. Use threshold to control border width. |
+| Cow | Smooth, rounded blobs with white space between them, like a cartoon cow print. Use threshold to control how much of the surface is patches. |
 
 ### Other
 

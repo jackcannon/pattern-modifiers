@@ -24,6 +24,7 @@ import { leopardPattern } from './leopardPattern';
 import { zebraPattern } from './zebraPattern';
 import { giraffePattern } from './giraffePattern';
 import { labyrinthPattern } from './labyrinthPattern';
+import { cowPattern } from './cowPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -55,7 +56,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   tigerPattern,
   leopardPattern,
   zebraPattern,
-  giraffePattern
+  giraffePattern,
+  cowPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

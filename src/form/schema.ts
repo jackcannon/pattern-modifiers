@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra', 'giraffe', 'labyrinth']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra', 'giraffe', 'labyrinth', 'cow']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -57,6 +57,10 @@ export const FormSchema = z.object({
   giraffeRounding: z.number().min(0).max(0.2),
   giraffeEdgeRoughness: z.number().min(0).max(0.08),
   giraffeStretch: z.number().min(1).max(3),
+  cowPatchSharePct: z.number().min(15).max(100),
+  cowSizeVariation: z.number().min(0).max(1.6),
+  cowEdgeCrinkle: z.number().min(0).max(0.2),
+  cowWobble: z.number().min(0).max(2),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -263,7 +267,7 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
           ? 'Rosette Spacing'
           : form.type === 'zebra'
             ? 'Stripe Spacing'
-            : form.type === 'giraffe'
+            : form.type === 'giraffe' || form.type === 'cow'
               ? 'Patch Size'
               : form.type === 'labyrinth'
                 ? 'Groove Spacing'
@@ -623,6 +627,51 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 1,
     max: 3
+  },
+  cowPatchSharePct: {
+    paramName: 'cps',
+    type: 'slider',
+    displayName: 'Patch Share',
+    description: 'Share of grid points that hold a patch. Lower values leave random gaps, so patches bunch together around empty areas',
+    defaultValue: 100,
+    unit: '%',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 15,
+    max: 100
+  },
+  cowSizeVariation: {
+    paramName: 'cvs',
+    type: 'slider',
+    displayName: 'Size Variation',
+    description: 'Random spread of patch size. 0 makes the patches more even',
+    defaultValue: 0.6,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 1.6
+  },
+  cowEdgeCrinkle: {
+    paramName: 'cec',
+    type: 'slider',
+    displayName: 'Edge Crinkle',
+    description: 'Small, ragged detail along patch edges. 0 gives smooth edges',
+    defaultValue: 0,
+    sliderStep: 0.01,
+    inputStep: 0.005,
+    min: 0,
+    max: 0.2
+  },
+  cowWobble: {
+    paramName: 'cwb',
+    type: 'slider',
+    displayName: 'Wobble',
+    description: 'How far the patch outlines bend into lobes and bays. 0 gives round spots',
+    defaultValue: 1,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 2
   },
   crackWidth: {
     paramName: 'kcw',

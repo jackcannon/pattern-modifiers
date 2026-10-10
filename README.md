@@ -71,6 +71,7 @@ Patterns are grouped in the sidebar. Default is **Topographical**.
 |---------|-------------|
 | Tiger | Long, thin, broken camouflage strokes that taper at the ends. Use threshold to control how much of the volume is solid. |
 | Leopard | Broken rings and spots like leopard or jaguar rosettes. Use threshold to control how thick the rings are. |
+| Zebra | Bold, even stripes that flow, curve and fork like a zebra coat. Use threshold to balance stripe and gap width. |
 
 ### Other
 

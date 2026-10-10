@@ -21,6 +21,7 @@ import { sinePattern } from './sinePattern';
 import { digicamoPattern } from './digicamoPattern';
 import { tigerPattern } from './tigerPattern';
 import { leopardPattern } from './leopardPattern';
+import { zebraPattern } from './zebraPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -49,7 +50,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   latticePattern,
   kelvinPattern,
   tigerPattern,
-  leopardPattern
+  leopardPattern,
+  zebraPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(

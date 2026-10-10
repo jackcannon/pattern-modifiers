@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -46,6 +46,10 @@ export const FormSchema = z.object({
   tigerBreakup: z.number().min(0).max(0.3),
   tigerWidthVariation: z.number().min(0).max(0.3),
   leopardRingSize: z.number().min(0.15).max(0.5),
+  zebraDirection: z.number().min(-180).max(180),
+  zebraWaviness: z.number().min(0).max(2),
+  zebraForking: z.number().min(0).max(0.6),
+  zebraWidthVariation: z.number().min(0).max(0.3),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -250,7 +254,9 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
         ? 'Cell Size'
         : form.type === 'leopard'
           ? 'Rosette Spacing'
-          : 'Feature Size',
+          : form.type === 'zebra'
+            ? 'Stripe Spacing'
+            : 'Feature Size',
     description: (form) =>
       form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
         ? 'Size of each cell. Larger values produce bigger cells'
@@ -483,6 +489,51 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.01,
     min: 0.15,
     max: 0.5
+  },
+  zebraDirection: {
+    paramName: 'zbd',
+    type: 'slider',
+    displayName: 'Stripe Direction',
+    description: 'Turns the stripes around the vertical axis',
+    defaultValue: 0,
+    unit: '°',
+    sliderStep: 1,
+    inputStep: 1,
+    min: -180,
+    max: 180
+  },
+  zebraWaviness: {
+    paramName: 'zbw',
+    type: 'slider',
+    displayName: 'Waviness',
+    description: 'How far the stripes curve and flow. 0 gives near-straight stripes',
+    defaultValue: 0.9,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 2
+  },
+  zebraForking: {
+    paramName: 'zbf',
+    type: 'slider',
+    displayName: 'Forking',
+    description: 'How often stripes split or join. Low values give long stripes, but can show tears where a stripe jumps sideways',
+    defaultValue: 0.3,
+    sliderStep: 0.02,
+    inputStep: 0.01,
+    min: 0,
+    max: 0.6
+  },
+  zebraWidthVariation: {
+    paramName: 'zbv',
+    type: 'slider',
+    displayName: 'Width Variation',
+    description: 'Slow change in stripe thickness across the model. 0 keeps every stripe the same width',
+    defaultValue: 0,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+    min: 0,
+    max: 0.3
   },
   crackWidth: {
     paramName: 'kcw',

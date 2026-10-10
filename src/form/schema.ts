@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -37,6 +37,7 @@ export const FormSchema = z.object({
   strutRadius: z.number().min(0.1),
   veinSpacing: z.number().min(2).max(200),
   swirl: z.number().min(0).max(4),
+  camoStretch: z.number().min(1).max(4),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -123,6 +124,7 @@ export const getDefaultFileName = (form: FormObject) => {
 
   if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
+  else if (form.type === 'camo') parts.push(`cst${form.camoStretch}`);
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
@@ -361,6 +363,17 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     sliderStep: 0.05,
     inputStep: 0.05,
     min: 0,
+    max: 4
+  },
+  camoStretch: {
+    paramName: 'cst',
+    type: 'slider',
+    displayName: 'Stretch',
+    description: 'How far the patches are drawn out along one diagonal. 1 gives round blotches, higher values give long streaks',
+    defaultValue: 2,
+    sliderStep: 0.1,
+    inputStep: 0.05,
+    min: 1,
     max: 4
   },
   crackWidth: {

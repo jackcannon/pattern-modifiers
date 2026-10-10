@@ -6,6 +6,7 @@ import { ridgedPattern } from './ridgedPattern';
 import { gyroidPattern } from './gyroidPattern';
 import { wavesPattern } from './wavesPattern';
 import { marblePattern } from './marblePattern';
+import { camoPattern } from './camoPattern';
 import { kintsugiPattern } from './kintsugiPattern';
 import { woodgrainPattern } from './woodgrainPattern';
 import { topographicalPattern } from './topographicalPattern';
@@ -35,6 +36,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   sinePattern,
   topographicalPattern,
   marblePattern,
+  camoPattern,
   kintsugiPattern,
   woodgrainPattern,
   crosshatchPattern,

@@ -30,6 +30,7 @@ Patterns are grouped in the sidebar. Default is **Topographical**.
 |---------|-------------|
 | Topographical | Map-like contour lines at fixed thickness, traced from noise height across the volume. |
 | Marble | Flowing veined stone bands with domain-warped noise. |
+| Camo | Two-tone woodland camouflage with even, lobed patches. Use threshold to control how much of the volume is solid. |
 | Kintsugi | Thin solid cracks along warped Voronoi cell edges, like repaired pottery seams. |
 | Woodgrain | Concentric growth rings with optional knots, oriented along a chosen axis. |
 

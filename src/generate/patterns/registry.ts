@@ -23,6 +23,7 @@ import { tigerPattern } from './tigerPattern';
 import { leopardPattern } from './leopardPattern';
 import { zebraPattern } from './zebraPattern';
 import { giraffePattern } from './giraffePattern';
+import { labyrinthPattern } from './labyrinthPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -39,6 +40,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   stripesPattern,
   zigzagPattern,
   sinePattern,
+  labyrinthPattern,
   topographicalPattern,
   marblePattern,
   camoPattern,

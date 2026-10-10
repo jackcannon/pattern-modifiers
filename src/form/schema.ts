@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra', 'giraffe']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard', 'zebra', 'giraffe', 'labyrinth']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -50,6 +50,9 @@ export const FormSchema = z.object({
   zebraWaviness: z.number().min(0).max(2),
   zebraForking: z.number().min(0).max(0.6),
   zebraWidthVariation: z.number().min(0).max(0.3),
+  labyrinthWiggle: z.number().min(0).max(1.5),
+  labyrinthStraightness: z.number().min(0).max(0.95),
+  labyrinthRegionSize: z.number().min(0.3).max(4),
   giraffeIrregularity: z.number().min(0).max(1),
   giraffeRounding: z.number().min(0).max(0.2),
   giraffeEdgeRoughness: z.number().min(0).max(0.08),
@@ -262,7 +265,9 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
             ? 'Stripe Spacing'
             : form.type === 'giraffe'
               ? 'Patch Size'
-              : 'Feature Size',
+              : form.type === 'labyrinth'
+                ? 'Groove Spacing'
+                : 'Feature Size',
     description: (form) =>
       form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
         ? 'Size of each cell. Larger values produce bigger cells'
@@ -540,6 +545,40 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.01,
     min: 0,
     max: 0.3
+  },
+  labyrinthWiggle: {
+    paramName: 'lbw',
+    type: 'slider',
+    displayName: 'Wiggle',
+    description: 'How much the grooves bend away from straight lines',
+    defaultValue: 0.5,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 1.5
+  },
+  labyrinthStraightness: {
+    paramName: 'lbs',
+    type: 'slider',
+    displayName: 'Straightness',
+    description: 'How parallel the grooves are inside one region. Higher values give straighter, more even grooves',
+    defaultValue: 0.5,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 0.95
+  },
+  labyrinthRegionSize: {
+    paramName: 'lbr',
+    type: 'slider',
+    displayName: 'Region Size',
+    description: 'How far grooves run in one direction before they turn, as a multiple of the default',
+    defaultValue: 1,
+    unit: '×',
+    sliderStep: 0.1,
+    inputStep: 0.05,
+    min: 0.3,
+    max: 4
   },
   giraffeIrregularity: {
     paramName: 'gfi',

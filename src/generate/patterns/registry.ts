@@ -19,6 +19,7 @@ import { stripesPattern } from './stripesPattern';
 import { zigzagPattern } from './zigzagPattern';
 import { sinePattern } from './sinePattern';
 import { digicamoPattern } from './digicamoPattern';
+import { tigerPattern } from './tigerPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -45,7 +46,8 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   parallelPattern,
   halftonePattern,
   latticePattern,
-  kelvinPattern
+  kelvinPattern,
+  tigerPattern
 ];
 
 export const patternRegistry: Record<PatternType, PatternDefinition> = Object.fromEntries(
@@ -66,10 +68,11 @@ const PATTERN_CATEGORY_LABELS: Record<PatternCategory, string> = {
   cellular: 'Cellular',
   surfaces: 'Surfaces',
   stripes: 'Stripes',
+  animals: 'Animals',
   other: 'Other'
 };
 
-const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'shading', 'cellular', 'surfaces', 'stripes', 'other'];
+const PATTERN_CATEGORY_ORDER: PatternCategory[] = ['effects', 'noise', 'shading', 'cellular', 'surfaces', 'stripes', 'animals', 'other'];
 
 export const PATTERN_TYPE_OPTION_GROUPS = PATTERN_CATEGORY_ORDER.map((category) => ({
   label: PATTERN_CATEGORY_LABELS[category],

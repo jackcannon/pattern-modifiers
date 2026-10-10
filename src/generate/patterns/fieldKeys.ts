@@ -18,6 +18,8 @@ export const CAMO_FIELD_KEYS = ['camoStretch', 'scale', 'seed'] as const satisfi
 
 export const DIGICAMO_FIELD_KEYS = ['camoPixelSize', 'camoStretch', 'digiDetailMix', 'digiPixelScatter', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
+export const TIGER_FIELD_KEYS = ['camoStretch', 'tigerAngle', 'tigerDirection', 'tigerBreakup', 'tigerWidthVariation', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
+
 export const KINTSUGI_FIELD_KEYS = ['crackWidth', 'crackJaggedness', 'scale', 'seed'] as const satisfies readonly (keyof FormObject)[];
 
 export const SHADING_NOISE_FIELD_KEYS = ['halftoneNoise', 'scale', 'seed', 'octaves', 'persistence'] as const satisfies readonly (keyof FormObject)[];

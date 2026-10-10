@@ -16,7 +16,7 @@ export type PatternSampleContext = {
   [key: string]: unknown;
 };
 
-export type PatternCategory = 'shading' | 'effects' | 'noise' | 'cellular' | 'surfaces' | 'stripes' | 'other';
+export type PatternCategory = 'shading' | 'effects' | 'noise' | 'cellular' | 'surfaces' | 'stripes' | 'animals' | 'other';
 
 /**
  * Analytic (grid-free) field a pattern can supply for demo-mode clipping. Lets patterns whose solid region

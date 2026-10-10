@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -41,6 +41,10 @@ export const FormSchema = z.object({
   camoPixelSize: z.number().min(0.5).max(40),
   digiDetailMix: z.number().min(0).max(1),
   digiPixelScatter: z.number().min(0).max(0.5),
+  tigerAngle: z.number().min(0).max(90),
+  tigerDirection: z.number().min(-180).max(180),
+  tigerBreakup: z.number().min(0).max(0.3),
+  tigerWidthVariation: z.number().min(0).max(0.3),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -129,6 +133,7 @@ export const getDefaultFileName = (form: FormObject) => {
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
   else if (form.type === 'camo') parts.push(`cst${form.camoStretch}`);
   else if (form.type === 'digicamo') parts.push(`cpx${form.camoPixelSize}-cst${form.camoStretch}`);
+  else if (form.type === 'tiger') parts.push(`cst${form.camoStretch}`);
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
@@ -373,7 +378,10 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'cst',
     type: 'slider',
     displayName: 'Stretch',
-    description: 'How far the patches are drawn out along one diagonal. 1 gives round blotches, higher values give long streaks',
+    description: (form) =>
+      form.type === 'tiger'
+        ? 'How thin the stripes are compared with their spacing. Higher values give thinner, more parallel stripes'
+        : 'How far the patches are drawn out along one diagonal. 1 gives round blotches, higher values give long streaks',
     defaultValue: 2,
     sliderStep: 0.1,
     inputStep: 0.05,
@@ -413,6 +421,52 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.01,
     min: 0,
     max: 0.5
+  },
+  tigerAngle: {
+    paramName: 'tga',
+    type: 'slider',
+    displayName: 'Stripe Angle',
+    description: 'Tilt of the stripes. 0° gives level stripes on the sides and broad blobs on the top, about 55° makes every face look the same',
+    defaultValue: 30,
+    unit: '°',
+    sliderStep: 1,
+    inputStep: 1,
+    min: 0,
+    max: 90
+  },
+  tigerDirection: {
+    paramName: 'tgd',
+    type: 'slider',
+    displayName: 'Stripe Direction',
+    description: 'Turns the stripes around the vertical axis',
+    defaultValue: 0,
+    unit: '°',
+    sliderStep: 1,
+    inputStep: 1,
+    min: -180,
+    max: 180
+  },
+  tigerBreakup: {
+    paramName: 'tgb',
+    type: 'slider',
+    displayName: 'Break-up',
+    description: 'How often the strokes break into short dashes. 0 gives long, unbroken strokes',
+    defaultValue: 0.06,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+    min: 0,
+    max: 0.3
+  },
+  tigerWidthVariation: {
+    paramName: 'tgv',
+    type: 'slider',
+    displayName: 'Width Variation',
+    description: 'Slow change in stroke density across the model. 0 keeps the strokes evenly spread',
+    defaultValue: 0,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+    min: 0,
+    max: 0.3
   },
   crackWidth: {
     paramName: 'kcw',

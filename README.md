@@ -65,6 +65,12 @@ Patterns are grouped in the sidebar. Default is **Topographical**.
 | Gyroid | Triply periodic minimal surface with continuous lattice-like channels woven through the volume. |
 | Waves | Layered sine-wave surfaces stacked through the volume. |
 
+### Animals
+
+| Pattern | Description |
+|---------|-------------|
+| Tiger | Long, thin, broken camouflage strokes that taper at the ends. Use threshold to control how much of the volume is solid. |
+
 ### Other
 
 | Pattern | Description |

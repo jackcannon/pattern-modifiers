@@ -44,6 +44,7 @@ export const Form = ({ schema, object, onChange }: Props) => {
       }
       onChange({ ...object, [key]: v });
     };
+    const onReset = () => onChangeValue(getPatternDefinition(object.type).fieldDefaults?.[key] ?? config.defaultValue);
 
     if (!isFieldActive(key, object)) return null;
 
@@ -77,6 +78,7 @@ export const Form = ({ schema, object, onChange }: Props) => {
         placeholder={placeholder}
         footer={footer}
         onChange={onChangeValue}
+        onReset={onReset}
       />
     );
   };

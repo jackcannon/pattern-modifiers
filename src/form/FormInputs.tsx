@@ -27,6 +27,7 @@ interface InputProps<T> {
   config: ResolvedFormInputConfig;
   value: T;
   onChange: (v: T) => void;
+  onReset?: () => void;
   max?: number;
   placeholder?: string;
   footer?: ReactNode;
@@ -231,7 +232,7 @@ export const FormInputSelect = <T extends unknown>({ propName, config, value, on
 };
 
 export const FormInput = <T extends unknown>(props: InputProps<T>) => {
-  const { propName, config, placeholder, footer } = props;
+  const { propName, config, placeholder, footer, onReset } = props;
 
   let flex = '1 0 100%';
   if (['boolean'].includes(config.type) && !footer) {
@@ -263,7 +264,9 @@ export const FormInput = <T extends unknown>(props: InputProps<T>) => {
     <Grid2 container spacing={0} sx={{ alignItems: 'center', padding: '0 0.25em 0.75em', flex }}>
       <Grid2 sx={{ width: '100%' }}>
         <Typography variant="body2" id={`input-slider-${propName}`}>
-          {config.displayName}{' '}
+          <span onDoubleClick={onReset} title={onReset ? 'Double-click to reset to default' : undefined} style={{ userSelect: 'none' }}>
+            {config.displayName}
+          </span>{' '}
           <Tooltip
             title={
               config.warning || config.note ? (

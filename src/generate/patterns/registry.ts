@@ -18,6 +18,7 @@ import { parallelPattern } from './parallelPattern';
 import { stripesPattern } from './stripesPattern';
 import { zigzagPattern } from './zigzagPattern';
 import { sinePattern } from './sinePattern';
+import { digicamoPattern } from './digicamoPattern';
 
 import type { FormObject, PatternType } from '../../form/schema';
 import type { PatternCategory, PatternDefinition } from './types';
@@ -37,6 +38,7 @@ export const PATTERN_DEFINITIONS: PatternDefinition[] = [
   topographicalPattern,
   marblePattern,
   camoPattern,
+  digicamoPattern,
   kintsugiPattern,
   woodgrainPattern,
   crosshatchPattern,

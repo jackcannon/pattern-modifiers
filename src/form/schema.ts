@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -38,6 +38,9 @@ export const FormSchema = z.object({
   veinSpacing: z.number().min(2).max(200),
   swirl: z.number().min(0).max(4),
   camoStretch: z.number().min(1).max(4),
+  camoPixelSize: z.number().min(0.5).max(40),
+  digiDetailMix: z.number().min(0).max(1),
+  digiPixelScatter: z.number().min(0).max(0.5),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -125,6 +128,7 @@ export const getDefaultFileName = (form: FormObject) => {
   if (patternFields.includes('scale')) parts.push(`sc${form.scale}`);
   if (form.type === 'marble') parts.push(`mv${form.veinSpacing}-sw${form.swirl}`);
   else if (form.type === 'camo') parts.push(`cst${form.camoStretch}`);
+  else if (form.type === 'digicamo') parts.push(`cpx${form.camoPixelSize}-cst${form.camoStretch}`);
   else if (form.type === 'kintsugi') parts.push(`kcw${form.crackWidth}-kcj${form.crackJaggedness}`);
   else if (form.type === 'woodgrain') parts.push(`wr${form.ringSpacing}-kn${form.knotCount}-${form.grainAxis}`);
   else if (form.type === 'halftone') parts.push(`dsp${form.dotSpacing}-htn${form.halftoneNoise}-dmnp${form.dotMinSizePct}-dmxp${form.dotMaxSizePct}`);
@@ -375,6 +379,40 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.05,
     min: 1,
     max: 4
+  },
+  camoPixelSize: {
+    paramName: 'cpx',
+    type: 'slider',
+    displayName: 'Pixel Size',
+    description: 'Edge length of each square block. Larger values give a coarser, more blocky pattern',
+    defaultValue: 4,
+    unit: 'mm',
+    sliderStep: 0.5,
+    inputStep: 0.25,
+    min: 0.5,
+    max: 40
+  },
+  digiDetailMix: {
+    paramName: 'ddm',
+    type: 'slider',
+    displayName: 'Detail Mix',
+    description: 'How much the smaller patch layer shows. 0 gives plain large patches, higher values break them into small clusters',
+    defaultValue: 0.35,
+    sliderStep: 0.05,
+    inputStep: 0.05,
+    min: 0,
+    max: 1
+  },
+  digiPixelScatter: {
+    paramName: 'dps',
+    type: 'slider',
+    displayName: 'Pixel Scatter',
+    description: 'Random change for each pixel. Higher values scatter more single pixels along patch edges',
+    defaultValue: 0.08,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+    min: 0,
+    max: 0.5
   },
   crackWidth: {
     paramName: 'kcw',

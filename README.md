@@ -65,6 +65,15 @@ Patterns are grouped in the sidebar. Default is **Topographical**.
 | Gyroid | Triply periodic minimal surface with continuous lattice-like channels woven through the volume. |
 | Waves | Layered sine-wave surfaces stacked through the volume. |
 
+### Stripes
+
+| Pattern | Description |
+|---------|-------------|
+| Stripes | Solid stripes of a fixed width, separated by gaps, through the volume. |
+| Zigzag | Stripes that bend in a sharp zigzag. The bend size follows the stripe width. |
+| Sine Wave | Stripes that bend in a smooth sine wave. The bend size follows the stripe width. |
+| Labyrinth | Winding grooves of even width that run, turn and branch like brain coral or a maze. Use threshold to balance groove and ridge width. |
+
 ### Animals
 
 | Pattern | Description |

@@ -8,7 +8,7 @@ import { DEFAULT_BUILD_VOLUME_PRESET_ID } from './buildVolumePresets';
 export const DemoModelSchema = z.enum(['cube', 'sphere', 'teapot', 'suzanne', 'bunny', 'benchy']);
 export type DemoModelType = z.infer<typeof DemoModelSchema>;
 
-export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger']);
+export const PatternTypeSchema = z.enum(['perlin', 'simplex', 'worley', 'voronoi', 'ridged', 'gyroid', 'waves', 'stripes', 'zigzag', 'sine', 'marble', 'camo', 'kintsugi', 'woodgrain', 'halftone', 'kelvin', 'crosshatch', 'parallel', 'topographical', 'lattice', 'digicamo', 'tiger', 'leopard']);
 export type PatternType = z.infer<typeof PatternTypeSchema>;
 
 export const GrainAxisSchema = z.enum(['x', 'y', 'z']);
@@ -45,6 +45,7 @@ export const FormSchema = z.object({
   tigerDirection: z.number().min(-180).max(180),
   tigerBreakup: z.number().min(0).max(0.3),
   tigerWidthVariation: z.number().min(0).max(0.3),
+  leopardRingSize: z.number().min(0.15).max(0.5),
   crackWidth: z.number().min(0.5).max(15),
   crackJaggedness: z.number().min(0).max(15),
   lineSpacing: z.number().min(1).max(50),
@@ -245,7 +246,11 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     paramName: 'sc',
     type: 'slider',
     displayName: (form) =>
-      form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi' ? 'Cell Size' : 'Feature Size',
+      form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
+        ? 'Cell Size'
+        : form.type === 'leopard'
+          ? 'Rosette Spacing'
+          : 'Feature Size',
     description: (form) =>
       form.type === 'worley' || form.type === 'voronoi' || form.type === 'kintsugi'
         ? 'Size of each cell. Larger values produce bigger cells'
@@ -467,6 +472,17 @@ export const formConfig: { [K in FormPropName]: FormInputConfig } = {
     inputStep: 0.01,
     min: 0,
     max: 0.3
+  },
+  leopardRingSize: {
+    paramName: 'lrs',
+    type: 'slider',
+    displayName: 'Ring Size',
+    description: 'Ring radius as a fraction of Rosette Spacing. Larger values give large rings that almost touch',
+    defaultValue: 0.37,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+    min: 0.15,
+    max: 0.5
   },
   crackWidth: {
     paramName: 'kcw',
